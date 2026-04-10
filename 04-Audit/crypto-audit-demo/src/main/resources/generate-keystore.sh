@@ -49,7 +49,7 @@ keytool -genkeypair \
   -keyalg RSA \
   -keysize 2048 \
   -sigalg SHA256withRSA \
-  -dname "CN=PQC Demo Local CA, OU=PQC Demo, O=Example Corp, L=Oslo, ST=Oslo, C=NO" \
+  -dname "CN=localhost, OU=Demo, O=Example, L=Tokyo, S=Tokyo, C=JP" \
   -validity 3650 \
   -ext bc:c \
   -storetype PKCS12 \
@@ -70,7 +70,7 @@ keytool -genkeypair \
   -keyalg RSA \
   -keysize 2048 \
   -sigalg SHA256withRSA \
-  -dname "CN=localhost, OU=PQC Demo, O=Example Corp, L=Oslo, ST=Oslo, C=NO" \
+  -dname "CN=localhost, OU=Demo, O=Example, L=Tokyo, S=Tokyo, C=JP" \
   -validity 825 \
   -ext san=dns:localhost,ip:127.0.0.1 \
   -ext eku=serverAuth \
