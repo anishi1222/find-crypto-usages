@@ -1,0 +1,64 @@
+# =========================
+# OS / Editor
+# =========================
+.DS_Store
+Thumbs.db
+
+.vscode/
+.idea/
+*.iml
+
+# IntelliJ local-only files (from existing project-level settings)
+**/.idea/shelf/
+**/.idea/workspace.xml
+**/.idea/queries/
+**/.idea/dataSources/
+**/.idea/dataSources.local.xml
+**/.idea/httpRequests/
+
+# =========================
+# Java / Maven build outputs
+# =========================
+**/target/
+**/out/
+**/build/
+*.class
+
+# Logs and runtime output
+**/logs/
+**/output/
+*.log
+
+# =========================
+# Certificates / keystores / secrets
+# =========================
+# Generated cert folders used in local demos
+**/certs/
+
+# Key/certificate and keystore artifacts
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Environment and secret files
+.env
+.env.*
+!.env.example
+*.secret
+*.secrets
+
+# =========================
+# Temporary files
+# =========================
+*.tmp
+*.temp
+*~
+
+# =========================
+# Other
+# =========================
+/Contents
+/copilot_cli.sh

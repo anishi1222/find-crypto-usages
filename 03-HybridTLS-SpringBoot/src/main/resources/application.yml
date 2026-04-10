@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: pqc-hybrid-tls-demo
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+info:
+  app:
+    name: ${spring.application.name}
+    description: Simple Spring Boot REST API for Java 27 Hybrid TLS demos
+  tls:
+    hybrid-default-group: X25519MLKEM768
+    profile: tls

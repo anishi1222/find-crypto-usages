@@ -1,0 +1,225 @@
+
+[1;36m============================================================[0m
+[1;37mPQC CRYPTOGRAPHIC AUDIT[0m
+[1;36m============================================================[0m
+
+  [1mTarget project:[0m /home/logico_jp/JavaZone-DevoxxPL/01-PQC/demo/crypto-audit-demo
+  [1mDate:[0m           2026-04-08 17:55:16
+  [1mJava version:[0m   openjdk version "27-ea" 2026-09-15
+
+
+[1;36m============================================================[0m
+[1;37mPHASE 1 — DEPENDENCY SCAN[0m
+[1;36m============================================================[0m
+
+  [1mBuild system:[0m maven
+  Scanning dependency tree for crypto libraries…
+
+    [1;33m🟡[0m PostgreSQL JDBC — internal TLS for DB connections: org.postgresql:postgresql:jar:42.7.10:runtime
+    [1;32m🟢[0m Apache Commons Codec — hashing/encoding utilities: commons-codec:commons-codec:jar:1.18.0:compile
+    [1;33m🟡[0m Bouncy Castle — general-purpose crypto provider: org.bouncycastle:bcprov-jdk18on:jar:1.83:compile
+    [1;31m🔴[0m Nimbus JOSE+JWT — JWT/JWE crypto: com.nimbusds:nimbus-jose-jwt:jar:9.37.4:compile
+    [1;33m🟡[0m Google Tink — crypto abstraction library: com.google.crypto.tink:tink:jar:1.9.0:compile
+    [1;33m🟡[0m Spring Security — contains crypto primitives: org.springframework.security:spring-security-config:jar:6.5.9:compile
+    [2mℹ  JDK built-in crypto (javax.crypto, java.security) is always available[0m
+    [1;33m🟡[0m JDK built-in JCA/JCE — review algorithm choices in source code
+
+[1;36m============================================================[0m
+[1;37mPHASE 2 — SOURCE CODE SCAN[0m
+[1;36m============================================================[0m
+
+  Scanning *.java, *.kt, *.groovy, *.properties, *.xml files…
+
+
+  [1;35m────────────────────────────────────────────────[0m
+  [1mJCE / JCA API Calls[0m
+  [1;35m────────────────────────────────────────────────[0m
+    [2mℹ  Mac.getInstance — HMAC computation: comment-only references detected (not counted as findings)[0m
+      [2m[comment] src/main/java/com/example/pqcdemo/service/HmacService.java:19: * rather than the JCE {@code Mac.getInstance()} call, which is the pattern used[0m
+    [1;33m🟡[0m TrustManagerFactory.getInstance — TLS trust config
+      [2msrc/main/java/com/example/pqcdemo/service/X509ValidationDemoService.java:115:        TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance([0m
+    [2mℹ  Signature.getInstance — digital signatures: comment-only references detected (not counted as findings)[0m
+      [2m[comment] src/main/java/com/example/pqcdemo/service/LicenseService.java:44: *       {@code Signature.getInstance(...)} calls</li>[0m
+      [2m[comment] src/main/java/com/example/pqcdemo/service/JwtService.java:23: *       ({@code Signature.getInstance("SHA256withRSA")}) is buried in the[0m
+    [1;33m🟡[0m SSLContext.getInstance — TLS configuration
+      [2msrc/main/java/com/example/pqcdemo/service/X509ValidationDemoService.java:120:        SSLContext sslContext = SSLContext.getInstance("TLS");[0m
+    [1;33m🟡[0m KeyStore.getInstance — keystore access
+      [2msrc/main/java/com/example/pqcdemo/service/X509ValidationDemoService.java:88:        KeyStore keyStore = KeyStore.getInstance("PKCS12");[0m
+      [2msrc/main/java/com/example/pqcdemo/service/X509ValidationDemoService.java:111:        KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());[0m
+      [2msrc/main/java/com/example/pqcdemo/service/LicenseService.java:81:        KeyStore keyStore = KeyStore.getInstance("PKCS12");[0m
+      [2msrc/main/java/com/example/pqcdemo/config/SecurityConfig.java:89:            KeyStore keyStore = KeyStore.getInstance("PKCS12");[0m
+
+  [1;35m────────────────────────────────────────────────[0m
+  [1mAlgorithm Name Strings[0m
+  [1;35m────────────────────────────────────────────────[0m
+    [2mℹ  HMAC-SHA algorithm reference: comment-only references detected (not counted as findings)[0m
+      [2m[comment] src/main/java/com/example/pqcdemo/service/HmacService.java:27: *       giving HMAC-SHA256. A naive grep for "HmacSHA256" will find nothing —[0m
+    [1;31m🔴[0m Spring/JWT RS256/RS384/RS512 enum reference
+      [2msrc/main/java/com/example/pqcdemo/service/JwtService.java:58:        JwsHeader header = JwsHeader.with(SignatureAlgorithm.RS256)[0m
+
+  [1;35m────────────────────────────────────────────────[0m
+  [1mAlgorithm OIDs (ASN.1 Object Identifiers)[0m
+  [1;35m────────────────────────────────────────────────[0m
+
+  [1;35m────────────────────────────────────────────────[0m
+  [1mConfiguration & Properties[0m
+  [1;35m────────────────────────────────────────────────[0m
+    [1;33m🟡[0m server.ssl.* — Spring Boot TLS configuration found
+      [2msrc/main/resources/application-demo.properties:14:server.ssl.key-store-password=changeit[0m
+      [2msrc/main/resources/application-demo.properties:24:server.ssl.client-auth=none[0m
+      [2msrc/main/resources/application.properties:23:server.ssl.enabled=true[0m
+      [2msrc/main/resources/application.properties:24:server.ssl.key-store=classpath:keystore.p12[0m
+      [2msrc/main/resources/application.properties:25:server.ssl.key-store-password=${SERVER_SSL_KEYSTORE_PASSWORD}[0m
+      [2msrc/main/resources/application.properties:26:server.ssl.key-store-type=PKCS12[0m
+      [2msrc/main/resources/application.properties:27:server.ssl.client-auth=none[0m
+    [1;33m🟡[0m Datasource with SSL params — DB connection uses TLS
+      [2msrc/main/resources/application-demo.properties:6:spring.datasource.url=jdbc:postgresql://localhost:5432/pqcdemo?sslmode=require[0m
+      [2msrc/main/resources/application.properties:11:spring.datasource.url=${APP_DB_URL:jdbc:postgresql://localhost:5432/pqcdemo?sslmode=verify-full}[0m
+    [1;33m🟡[0m Keystore/truststore references in configuration
+      [2msrc/main/resources/application-demo.properties:14:server.ssl.key-store-password=changeit[0m
+      [2msrc/main/resources/application-demo.properties:17:app.security.jwt.keystore.password=changeit[0m
+      [2msrc/main/resources/application-demo.properties:20:app.license.keystore.password=changeit[0m
+      [2msrc/main/resources/application-demo.properties:23:app.demo.x509.keystore.alias=server[0m
+      [2msrc/main/resources/application.properties:24:server.ssl.key-store=classpath:keystore.p12[0m
+      [2msrc/main/resources/application.properties:25:server.ssl.key-store-password=${SERVER_SSL_KEYSTORE_PASSWORD}[0m
+      [2msrc/main/resources/application.properties:26:server.ssl.key-store-type=PKCS12[0m
+      [2msrc/main/resources/application.properties:40:app.security.jwt.keystore.path=${APP_JWT_KEYSTORE_PATH:classpath:keystore.p12}[0m
+      [2msrc/main/resources/application.properties:41:app.security.jwt.keystore.password=${APP_JWT_KEYSTORE_PASSWORD}[0m
+      [2msrc/main/resources/application.properties:42:app.security.jwt.keystore.alias=${APP_JWT_KEY_ALIAS:server}[0m
+      [2msrc/main/resources/application.properties:50:app.license.keystore.path=${APP_LICENSE_KEYSTORE_PATH:classpath:keystore.p12}[0m
+      [2msrc/main/resources/application.properties:51:app.license.keystore.password=${APP_LICENSE_KEYSTORE_PASSWORD}[0m
+      [2msrc/main/resources/application.properties:52:app.license.keystore.alias=${APP_LICENSE_KEY_ALIAS:server}[0m
+      [2msrc/main/resources/application.properties:63:app.demo.x509.keystore.alias=${APP_DEMO_X509_KEY_ALIAS:server}[0m
+
+  [1;35m────────────────────────────────────────────────[0m
+  [1mTiming Side-Channel Patterns[0m
+  [1;35m────────────────────────────────────────────────[0m
+    [1;33m🟡[0m Potential timing side-channel: equality/ordering comparison on secret-like data
+    [2mℹ  Heuristic: comparison methods combined with token/secret/password/key-like identifiers. Prefer MessageDigest.isEqual() or a constant-time helper.[0m
+      [2msrc/main/java/com/example/pqcdemo/service/LicenseService.java:130:        if (!payload.equals(licenseKey)) {[0m
+
+  [1;35m────────────────────────────────────────────────[0m
+  [1mFramework / Library API Patterns (require library knowledge)[0m
+  [1;35m────────────────────────────────────────────────[0m
+    [1;31m🔴[0m Spring Security Nimbus JWT — RSA/ECDSA JWT signing (algorithm hidden in decoder/encoder config)
+      [2msrc/main/java/com/example/pqcdemo/controller/ApiController.java:163:                "note", "Signed via Spring Security NimbusJwtEncoder"[0m
+      [2msrc/main/java/com/example/pqcdemo/config/SecurityConfig.java:23:import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;[0m
+      [2msrc/main/java/com/example/pqcdemo/config/SecurityConfig.java:24:import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;[0m
+      [2msrc/main/java/com/example/pqcdemo/config/SecurityConfig.java:144:        NimbusJwtDecoder decoder = NimbusJwtDecoder.withPublicKey(publicKey).build();[0m
+      [2msrc/main/java/com/example/pqcdemo/config/SecurityConfig.java:158:        return new NimbusJwtEncoder(new ImmutableJWKSet<>(new JWKSet(rsaKey)));[0m
+    [2mℹ  Spring Security Nimbus JWT — RSA/ECDSA JWT signing (algorithm hidden in decoder/encoder config): comment-only references shown below are not counted as findings[0m
+      [2m[comment] src/main/java/com/example/pqcdemo/controller/ApiController.java:62:     * {@code NimbusJwtDecoder} — RSA signature verification happens[0m
+      [2m[comment] src/main/java/com/example/pqcdemo/service/JwtService.java:22: *       Spring Security's {@code NimbusJwtEncoder}. The crypto call[0m
+      [2m[comment] src/main/java/com/example/pqcdemo/service/JwtService.java:48:     * <p>The actual RSA signing happens inside {@code NimbusJwtEncoder},[0m
+      [2m[comment] src/main/java/com/example/pqcdemo/config/SecurityConfig.java:39: *   <li><b>🔴 JWT signature verification</b> — Spring Security's {@code NimbusJwtDecoder}[0m
+      [2m[comment] src/main/java/com/example/pqcdemo/config/SecurityConfig.java:131:            // inside NimbusJwtDecoder (Nimbus JOSE+JWT), invisible to application code[0m
+      [2m[comment] src/main/java/com/example/pqcdemo/config/SecurityConfig.java:140:     * CRYPTO AUDIT: NimbusJwtDecoder — verifies JWT signatures using RSA.[0m
+    [1;33m🟡[0m Bouncy Castle SignerInfoGenerator — CMS signature infrastructure
+      [2msrc/main/java/com/example/pqcdemo/service/LicenseService.java:11:import org.bouncycastle.cms.jcajce.JcaSignerInfoGeneratorBuilder;[0m
+      [2msrc/main/java/com/example/pqcdemo/service/LicenseService.java:169:                new JcaSignerInfoGeneratorBuilder([0m
+    [1;33m🟡[0m Google Tink KeysetHandle — crypto algorithm determined by key template parameter
+      [2msrc/main/java/com/example/pqcdemo/service/EncryptionService.java:60:        KeysetHandle keysetHandle = KeysetHandle.generateNew(PredefinedAeadParameters.AES256_GCM);[0m
+    [1;32m🟢[0m Bouncy Castle digest — hashing primitive (check digest class name for algorithm)
+      [2msrc/main/java/com/example/pqcdemo/service/HmacService.java:72:        HMac hmac = new HMac(new SHA256Digest());[0m
+    [1;33m🟡[0m Google Tink AEAD — AES-256-GCM hidden in key template (consult PredefinedAeadParameters for actual algorithm)
+      [2msrc/main/java/com/example/pqcdemo/service/EncryptionService.java:6:import com.google.crypto.tink.aead.PredefinedAeadParameters;[0m
+      [2msrc/main/java/com/example/pqcdemo/service/EncryptionService.java:55:        AeadConfig.register();[0m
+      [2msrc/main/java/com/example/pqcdemo/service/EncryptionService.java:60:        KeysetHandle keysetHandle = KeysetHandle.generateNew(PredefinedAeadParameters.AES256_GCM);[0m
+    [2mℹ  Google Tink AEAD — AES-256-GCM hidden in key template (consult PredefinedAeadParameters for actual algorithm): comment-only references shown below are not counted as findings[0m
+      [2m[comment] src/main/java/com/example/pqcdemo/service/EncryptionService.java:26: *       algorithm. {@code PredefinedAeadParameters.AES256_GCM} specifies AES-256-GCM.</li>[0m
+      [2m[comment] src/main/java/com/example/pqcdemo/service/EncryptionService.java:46:    // NOT by this variable name. Consult PredefinedAeadParameters.AES256_GCM[0m
+      [2m[comment] src/main/java/com/example/pqcdemo/service/EncryptionService.java:58:        // PredefinedAeadParameters.AES256_GCM → AES-256-GCM (quantum-safe bulk cipher)[0m
+    [1;31m🔴[0m Bouncy Castle ContentSigner — digital signature (algorithm string in builder constructor, e.g. SHA256withRSA)
+      [2msrc/main/java/com/example/pqcdemo/service/LicenseService.java:15:import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;[0m
+      [2msrc/main/java/com/example/pqcdemo/service/LicenseService.java:164:        ContentSigner signer = new JcaContentSignerBuilder("SHA256withRSA")[0m
+    [1;32m🟢[0m Bouncy Castle HMac — symmetric MAC (algorithm determined by Digest constructor argument)
+      [2msrc/main/java/com/example/pqcdemo/service/HmacService.java:4:import org.bouncycastle.crypto.macs.HMac;[0m
+      [2msrc/main/java/com/example/pqcdemo/service/HmacService.java:72:        HMac hmac = new HMac(new SHA256Digest());[0m
+    [1;33m🟡[0m Bouncy Castle CMS — PKCS#7 SignedData (check embedded signature algorithm OID)
+      [2msrc/main/java/com/example/pqcdemo/service/LicenseService.java:8:import org.bouncycastle.cms.CMSSignedData;[0m
+      [2msrc/main/java/com/example/pqcdemo/service/LicenseService.java:9:import org.bouncycastle.cms.CMSSignedDataGenerator;[0m
+      [2msrc/main/java/com/example/pqcdemo/service/LicenseService.java:122:        CMSSignedData signedData = new CMSSignedData(cmsBytes);[0m
+      [2msrc/main/java/com/example/pqcdemo/service/LicenseService.java:162:        CMSSignedDataGenerator generator = new CMSSignedDataGenerator();[0m
+      [2msrc/main/java/com/example/pqcdemo/service/LicenseService.java:176:        CMSSignedData signedData = generator.generate(cmsData, true);[0m
+
+[1;36m============================================================[0m
+[1;37mPHASE 3 — KEYSTORE & CERTIFICATE AUDIT[0m
+[1;36m============================================================[0m
+
+  Scanning for keystore files (*.jks, *.p12, *.pkcs12, *.keystore)
+  and PEM certificate/key files (*.pem, *.crt, *.cer, *.key)…
+
+
+  [1;35m────────────────────────────────────────────────[0m
+  [1mKeystore: src/main/resources/keystore.p12[0m
+  [1;35m────────────────────────────────────────────────[0m
+    [2mAlias name: demo-ca[0m
+    [2mEntry type: trustedCertEntry[0m
+    [2mValid from: Wed Apr 08 17:52:22 JST 2026 until: Sat Apr 05 17:52:22 JST 2036[0m
+    [2mSignature algorithm name: SHA256withRSA[0m
+    [2mAlias name: server[0m
+    [2mEntry type: PrivateKeyEntry[0m
+    [2mValid from: Wed Apr 08 17:52:24 JST 2026 until: Tue Jul 11 17:52:24 JST 2028[0m
+    [2mSignature algorithm name: SHA384withRSA[0m
+    [2mValid from: Wed Apr 08 17:52:22 JST 2026 until: Sat Apr 05 17:52:22 JST 2036[0m
+    [2mSignature algorithm name: SHA256withRSA[0m
+    [1;31m🔴[0m Keystore src/main/resources/keystore.p12: contains quantum-vulnerable keys/signatures
+      [1;31mSignature algorithm name: SHA256withRSA[0m
+      [1;31mSignature algorithm name: SHA384withRSA[0m
+      [1;31mSignature algorithm name: SHA256withRSA[0m
+
+  [1;35m────────────────────────────────────────────────[0m
+  [1mPEM Certificate & Key Files[0m
+  [1;35m────────────────────────────────────────────────[0m
+    [2mNo PEM files found.[0m
+
+[1;36m============================================================[0m
+[1;37mPQC CRYPTOGRAPHIC AUDIT SUMMARY[0m
+[1;36m============================================================[0m
+
+  [1mTotal crypto usage points found: [1;37m24[0m
+
+  [1;31m🔴 QUANTUM-VULNERABLE (requires PQC migration): 5[0m
+     - Nimbus JOSE+JWT — JWT/JWE crypto: com.nimbusds:nimbus-jose-jwt:jar:9.37.4:compile
+     - Spring/JWT RS256/RS384/RS512 enum reference
+     - Spring Security Nimbus JWT — RSA/ECDSA JWT signing (algorithm hidden in decoder/encoder config)
+     - Bouncy Castle ContentSigner — digital signature (algorithm string in builder constructor, e.g. SHA256withRSA)
+     - Keystore src/main/resources/keystore.p12: contains quantum-vulnerable keys/signatures
+
+  [1;33m🟡 ATTENTION (review recommended): 16[0m
+     - PostgreSQL JDBC — internal TLS for DB connections: org.postgresql:postgresql:jar:42.7.10:runtime
+     - Bouncy Castle — general-purpose crypto provider: org.bouncycastle:bcprov-jdk18on:jar:1.83:compile
+     - Google Tink — crypto abstraction library: com.google.crypto.tink:tink:jar:1.9.0:compile
+     - Spring Security — contains crypto primitives: org.springframework.security:spring-security-config:jar:6.5.9:compile
+     - JDK built-in JCA/JCE — review algorithm choices in source code
+     - TrustManagerFactory.getInstance — TLS trust config
+     - SSLContext.getInstance — TLS configuration
+     - KeyStore.getInstance — keystore access
+     - server.ssl.* — Spring Boot TLS configuration found
+     - Datasource with SSL params — DB connection uses TLS
+     - Keystore/truststore references in configuration
+     - Potential timing side-channel: equality/ordering comparison on secret-like data
+     - Bouncy Castle SignerInfoGenerator — CMS signature infrastructure
+     - Google Tink KeysetHandle — crypto algorithm determined by key template parameter
+     - Google Tink AEAD — AES-256-GCM hidden in key template (consult PredefinedAeadParameters for actual algorithm)
+     - Bouncy Castle CMS — PKCS#7 SignedData (check embedded signature algorithm OID)
+
+  [1;32m🟢 LOW-RISK (minimal quantum impact): 3[0m
+     - Apache Commons Codec — hashing/encoding utilities: commons-codec:commons-codec:jar:1.18.0:compile
+     - Bouncy Castle digest — hashing primitive (check digest class name for algorithm)
+     - Bouncy Castle HMac — symmetric MAC (algorithm determined by Digest constructor argument)
+
+  [1;36m────────────────────────────────────────────────[0m
+  [1mRECOMMENDED ACTIONS:[0m
+    1. Migrate [1;32msignature workflows[0m (JWT, certificates, CMS) from RSA/ECDSA/DSA to [1;32mML-DSA / SLH-DSA[0m when ecosystem support is ready
+    2. Migrate [1;32mkey-establishment workflows[0m (ECDH, DH, TLS named groups, RSA wrapping) to [1;32mML-KEM / hybrid TLS[0m
+    3. Keep [1;32mbulk symmetric crypto[0m (AES, ChaCha, HMAC) but review key sizes and crypto-agility boundaries
+    4. Upgrade to [1;32mJDK 27[0m for native hybrid TLS named groups (JEP 527)
+    5. Add a [1;32mcrypto-agility abstraction layer[0m so signatures, KEM, and TLS settings can evolve independently
+  [1;36m────────────────────────────────────────────────[0m
+
+  [2mRun 'java scripts/CryptoAuditJce.java' for JCE provider enumeration[0m
+  [2mRun 'java ../ciphercheck-demo/CipherSuiteCheck.java' for TLS named-group capability audit[0m
+  [2mRun 'java scripts/KeystoreAudit.java <path> <password>' for keystore audit[0m
+
+[1;36m============================================================[0m

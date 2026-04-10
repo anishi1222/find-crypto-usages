@@ -1,0 +1,34 @@
+# application.yml example for describing crypto-agility
+
+crypto:
+  mode: hybrid                    # classic | pqc | hybrid
+
+  # Application-Level Cryptography (KEM + Signatures)
+  # These map directly to JCA: KEM.getInstance() / Signature.getInstance()
+  kem:
+    algorithm: ML-KEM-768         # JCA standard name (FIPS 203, Security Level 3)
+  signature:
+    algorithm: ML-DSA-65          # JCA standard name (FIPS 204, Security Level 3)
+
+  tls:
+    # Named group preference order for key exchange
+    # JDK 27+: maps to jdk.tls.namedGroups system property
+    # Pre-JDK 27: requires Bouncy Castle JSSE (BCJSSE) provider
+    named-groups:
+      - X25519MLKEM768            # PQC hybrid (recommended default)
+      - x25519                    # Classical fallback
+      - secp256r1                 # Classical NIST curve fallback
+
+    protocol: TLSv1.3
+    # JSSE provider selection
+    # - "SunJSSE"  → JDK 27+ with JEP 527 (native PQC hybrid)
+    # - "BCJSSE"   → Bouncy Castle (JDK 24–26 workaround)
+    provider: SunJSSE
+
+  keystore:
+    type: PKCS12                  # Required for PQC keys (JKS has OID limitations)
+    path: classpath:server-pqc.p12
+    password: ${KEYSTORE_PASSWORD}
+    # PQC key aliases
+    kem-alias: mlkem              # ML-KEM-768 key pair (signed by EC signer)
+    signature-alias: mldsa        # ML-DSA-65 key pair (self-signed)

@@ -1,0 +1,9 @@
+server:
+  port: ${SERVER_PORT:8443}
+  ssl:
+    enabled: true
+    enabled-protocols: TLSv1.3
+    key-store: ${SERVER_SSL_KEY_STORE}
+    key-store-password: ${SERVER_SSL_KEY_STORE_PASSWORD}
+    key-store-type: ${SERVER_SSL_KEY_STORE_TYPE:PKCS12}
+    key-alias: ${SERVER_SSL_KEY_ALIAS:hybrid-tls-demo}
