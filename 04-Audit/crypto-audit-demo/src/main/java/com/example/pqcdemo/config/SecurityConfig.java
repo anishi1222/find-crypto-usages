@@ -107,7 +107,7 @@ public class SecurityConfig {
         }
 
         if (allowPublicDemoEndpoints) {
-            log.warn("Demo mode enabled: /api/token, /api/verify, /api/license/check, and /api/x509/validate-self are publicly accessible.");
+            log.warn("Demo mode enabled: /api/token, /api/verify, and /api/license/check are publicly accessible.");
         }
     }
 
@@ -123,7 +123,7 @@ public class SecurityConfig {
                 auth.requestMatchers("/api/health", "/error").permitAll();
                 if (allowPublicDemoEndpoints) {
                     auth.requestMatchers(HttpMethod.POST, "/api/token", "/api/verify").permitAll();
-                    auth.requestMatchers(HttpMethod.GET, "/api/license/check", "/api/x509/validate-self").permitAll();
+                    auth.requestMatchers(HttpMethod.GET, "/api/license/check").permitAll();
                 }
                 auth.anyRequest().authenticated();
             })

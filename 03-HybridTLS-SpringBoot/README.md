@@ -158,6 +158,30 @@ On **Java 27**, a TLS 1.3 client will normally **prefer** `X25519MLKEM768` by de
 
 So if you omit `--named-group`, Java 27 will often negotiate `X25519MLKEM768`, but it is **not guaranteed**. The `--named-group X25519MLKEM768` option is there to make the verification deterministic.
 
+### 4. Force the hybrid group from `curl` (when supported)
+
+If your `curl` uses a TLS backend that understands hybrid groups such as `X25519MLKEM768`,
+you can restrict the offered group list to that single value:
+
+```bash
+curl -vk \
+  --tlsv1.3 \
+  --tls-max 1.3 \
+  --curves X25519MLKEM768 \
+  "https://localhost:8443/api/hello?name=curl"
+```
+
+The important part is `--curves X25519MLKEM768`: that makes the client offer only the hybrid
+group. If the server was started with `APP_TLS_NAMED_GROUPS="X25519MLKEM768"` and the request
+succeeds, the handshake negotiated the hybrid group.
+
+Notes:
+
+- `--tlsv1.3 --tls-max 1.3` forces TLS 1.3 instead of “TLS 1.3 or greater”
+- not every `curl` build can do this; support depends on the linked TLS library
+- if `curl` rejects the group name or the handshake fails immediately, use the included
+  `HybridTlsClient` for deterministic verification
+
 ## Checking the default JSSE named group order
 
 There are three different questions you might want to answer:
@@ -386,7 +410,9 @@ For an additional server-side check, inspect the `/api/tls` response body and co
 src/main/java/dev/logicojp/example/pqchybridtls/
 ├── PqcHybridTlsApplication.java      # Bootstraps Spring Boot and maps APP_TLS_NAMED_GROUPS -> jdk.tls.namedGroups
 ├── api/ApiController.java            # REST endpoints for hello + TLS session diagnostics
-├── client/HybridTlsClient.java       # Probe client with TLS 1.3, mTLS, and JSON output support
+├── client/HybridTlsClient.java       # Probe client with TLS 1.3, mTLS, JSON output, and custom TLS JFR audit event
+├── jfr/TlsHandshakeAuditEvent.java   # Custom event shared by client and server TLS audit emitters
+├── jfr/ServerTlsHandshakeAuditFilter.java # Emits server-side custom TLS audit events for secure inbound requests
 └── tools/PrintDefaultNamedGroups.java # Prints the effective JSSE named group ordering seen by this JVM
 
 src/main/resources/
@@ -397,50 +423,121 @@ src/main/resources/
 
 ## JFR recording
 
-JFR can record TLS handshakes via the `jdk.TLSHandshake` event, but it is important to distinguish that from `-Djavax.net.debug=ssl:handshake`:
+This demo supports both:
 
 - `jdk.TLSHandshake` is a **JFR event**
-- `ssl:handshake` is a **JSSE debug log**
+- `dev.logicojp.example.pqchybridtls.TlsHandshakeAudit` is a **custom JFR event** emitted by both client and server paths
 
-Use JFR when you want a structured recording of TLS handshake activity. Use `ssl:handshake` when you need to see the negotiated **named group** such as `X25519MLKEM768`.
+The custom event adds fields that `jdk.TLSHandshake` does not expose, especially `negotiatedNamedGroup`.
+
+Important: JFR recordings are **per JVM process**.  
+If you want evidence from both sides, start recording on both the server JVM and the client JVM.
+
+In this project, `dev.logicojp.example.pqchybridtls.TlsHandshakeAudit` is emitted by:
+
+- `HybridTlsClient` (client side)
+- `ServerTlsHandshakeAuditFilter` (server side, secure inbound requests)
 
 ### 1. Start the server with a JFR recording enabled
+
+If you changed source code, run `mvn package` first so `-jar` uses the latest classes.
 
 ```bash
 mkdir -p logs
 
-java -XX:StartFlightRecording=name=tls,maxsize=500M,dumponexit=true,filename=logs/hybrid-tls_%p_%t.jfr,settings=profile \
+java --add-opens java.base/sun.security.ssl=ALL-UNNAMED \
+  -XX:StartFlightRecording=name=tls,maxsize=500M,dumponexit=true,filename=logs/hybrid-tls_%p_%t.jfr,settings=profile \
   -jar target/pqchybridtls-0.0.1-SNAPSHOT.jar \
   --spring.profiles.active=tls
 ```
 
-### 2. Generate TLS traffic
-
-Call the application with the included client or with `curl -k` so the server actually performs a TLS handshake:
+### 2. Run the client with its own JFR recording (custom event emission)
 
 ```bash
-java -cp target/classes \
+java --add-opens java.base/sun.security.ssl=ALL-UNNAMED \
+  -XX:StartFlightRecording=name=tls-client,dumponexit=true,filename=logs/hybrid-tls-client_%p_%t.jfr,settings=profile \
+  -cp target/classes \
   dev.logicojp.example.pqchybridtls.client.HybridTlsClient \
   --url https://localhost:8443/api/hello?name=JFR \
   --named-group X25519MLKEM768 \
   --trust-all
 ```
 
-### 3. Print only the TLS handshake events
+The `--add-opens` option enables negotiated named group capture from JSSE internals.
+Without it, the custom event still emits but `negotiatedNamedGroup` may show `unavailable`.
+The same applies to the **server JVM** if you want server-side custom events to resolve the
+negotiated group for generic clients such as `curl`.
+
+### 3. Print built-in TLS handshake events (server recording)
 
 ```bash
 jfr print --events jdk.TLSHandshake logs/hybrid-tls_<pid>_<timestamp>.jfr
 ```
 
-The `jdk.TLSHandshake` event gives you structured fields such as:
+This command prints only the built-in event. It does **not** include
+`dev.logicojp.example.pqchybridtls.TlsHandshakeAudit`.
 
-- `peerHost`
-- `peerPort`
-- `protocolVersion`
+### 4. Print custom audit events from the server recording
+
+```bash
+jfr print --stack-depth 64 \
+  --events dev.logicojp.example.pqchybridtls.TlsHandshakeAudit \
+  logs/hybrid-tls_<pid>_<timestamp>.jfr
+```
+
+### 5. Print custom named-group audit events (client recording)
+
+```bash
+jfr print --stack-depth 64 \
+  --events dev.logicojp.example.pqchybridtls.TlsHandshakeAudit \
+  logs/hybrid-tls-client_<pid>_<timestamp>.jfr
+```
+
+The custom event includes:
+
+- `targetUrl`
+- `tlsVersion`
 - `cipherSuite`
-- `certificateId`
+- `negotiatedNamedGroup`
+- `configuredNamedGroups`
+- `certSigAlgorithm`
+- `peerSubject`
 
-### 4. Or attach JFR later with `jcmd`
+The custom event also records the Java stack trace at the point where the event is committed.
+For this project, that means the stack will lead back to the client emitter
+(`HybridTlsClient`) or the server emitter (`ServerTlsHandshakeAuditFilter`), not to a native
+OpenSSL stack.
+
+For server-side custom events:
+
+- `tlsVersion` falls back to `SSLSession.getProtocol()` if the servlet container does not expose a TLS protocol attribute
+- `configuredNamedGroups` shows the explicit `jdk.tls.namedGroups` override when present, otherwise the effective JSSE default named group list from `SSLContext.getDefault().getDefaultSSLParameters().getNamedGroups()`
+
+For server-side custom events, `negotiatedNamedGroup` resolution order is:
+
+1. Server-side `SSLEngine` capture during the TLS handshake, stored on the `SSLSession`
+2. Reflection via `jakarta.servlet.request.ssl_session_mgr` + `SSLSession` internals
+3. Client-provided `X-PQC-Negotiated-Named-Group` header (sent by `HybridTlsClient`)
+
+So when traffic is generated by `HybridTlsClient`, server-side events can record the negotiated group
+even if Tomcat/JDK internals do not expose it directly at servlet layer.
+
+That server-side `SSLEngine` capture also works for generic clients. For example:
+
+```bash
+curl -sk "https://localhost:8443/api/hello?name=JFR"
+```
+
+With the server started using `--add-opens`, the custom JFR event can then show a real value such as
+`x25519` for `curl`, even though no client-side helper header is present.
+
+Important when testing protocol versions with `curl`:
+
+- `curl --tlsv1.2` means **TLS 1.2 or greater**, not “TLS 1.2 only”
+- this demo's `tls` profile enables only `TLSv1.3`, so `curl --tlsv1.2` can still negotiate TLS 1.3 and JFR should correctly record `TLSv1.3`
+- if you want to force TLS 1.2 from `curl`, use `--tlsv1.2 --tls-max 1.2`; with the current server configuration that handshake should fail instead of downgrading
+
+### 6. Or attach JFR later with `jcmd`
 
 If you want to start the server normally and attach JFR only when needed, find the process ID and run:
 
@@ -448,11 +545,9 @@ If you want to start the server normally and attach JFR only when needed, find t
 jcmd <PID> JFR.start name=tls duration=60s filename=logs/hybrid-tls-on-demand.jfr settings=profile
 ```
 
-### 5. How to confirm `X25519MLKEM768`
+### 7. Fallback: JSSE debug log
 
-JFR **does not include the TLS named group** in `jdk.TLSHandshake`, so JFR alone cannot prove that `X25519MLKEM768` was negotiated.
-
-To confirm the named group, run the client or server with JSSE handshake debug enabled:
+If you need low-level handshake troubleshooting, run the client or server with JSSE handshake debug enabled:
 
 ```bash
 java -Djavax.net.debug=ssl:handshake \
@@ -467,12 +562,12 @@ Then look for `X25519MLKEM768` in the debug output.
 
 If the JSSE debug log shows `"client version": "TLSv1.2"` in `ClientHello` or `"server version": "TLSv1.2"` in `ServerHello`, that is still normal for a TLS 1.3 handshake. In TLS 1.3, those fields are legacy compatibility values. To confirm the real negotiated protocol, look for `supported_versions`, `selected version: [TLSv1.3]`, `Negotiated protocol version: TLSv1.3`, or a TLS 1.3-only cipher suite such as `TLS_AES_256_GCM_SHA384`.
 
-In practice, use both together:
+In practice:
 
-- **JFR** for structured evidence that TLS 1.3 handshakes happened and which cipher suite was used
-- **`ssl:handshake` debug logs** for the exact named group, including `X25519MLKEM768`
+- use **`dev.logicojp.example.pqchybridtls.TlsHandshakeAudit`** for structured named-group evidence
+- use **`ssl:handshake` debug logs** when you need deeper troubleshooting detail
 
-For example:
+Troubleshooting example:
 
 ```bash
 java -Djavax.net.debug=ssl:handshake \

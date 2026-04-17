@@ -4,7 +4,6 @@ import com.example.pqcdemo.service.EncryptionService;
 import com.example.pqcdemo.service.HmacService;
 import com.example.pqcdemo.service.JwtService;
 import com.example.pqcdemo.service.LicenseService;
-import com.example.pqcdemo.service.X509ValidationDemoService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -30,18 +29,15 @@ public class ApiController {
     private final EncryptionService encryptionService;
     private final HmacService hmacService;
     private final LicenseService licenseService;
-    private final X509ValidationDemoService x509ValidationDemoService;
 
     public ApiController(JwtService jwtService,
                          EncryptionService encryptionService,
                          HmacService hmacService,
-                         LicenseService licenseService,
-                         X509ValidationDemoService x509ValidationDemoService) {
+                         LicenseService licenseService) {
         this.jwtService = jwtService;
         this.encryptionService = encryptionService;
         this.hmacService = hmacService;
         this.licenseService = licenseService;
-        this.x509ValidationDemoService = x509ValidationDemoService;
     }
 
     /**
@@ -162,14 +158,5 @@ public class ApiController {
                 "algorithm", "RS256 / RSA (quantum-VULNERABLE)",
                 "note", "Signed via Spring Security NimbusJwtEncoder"
         ));
-    }
-
-    /**
-     * Demo endpoint: make an outbound HTTPS call back to the service and validate
-     * the presented server certificate inside the same JVM.
-     */
-    @GetMapping("/x509/validate-self")
-    public ResponseEntity<X509ValidationDemoService.X509ValidationResult> validateServerCertificate() throws Exception {
-        return ResponseEntity.ok(x509ValidationDemoService.triggerValidation());
     }
 }

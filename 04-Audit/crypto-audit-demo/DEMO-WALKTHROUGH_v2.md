@@ -12,8 +12,8 @@
 > Runtime evidence included as a core-path pre-captured step; live JFR is optional.
 > JFR wording softened to match what the packaged recording actually proves.
 > Exact negotiated named-group guidance updated: built-in JFR alone is not enough in
-> this JDK build; use JSSE handshake debug or the demo's custom JFR event when you
-> need handshake-level proof of the negotiated group.
+> this JDK build; use JSSE handshake debug when you need handshake-level proof of the
+> negotiated group.
 
 ---
 
@@ -47,7 +47,7 @@ java -version
 mvn -version
 
 # Navigate to demo directory
-cd DevoxxFR2026/04-Audit/crypto-audit-demo
+cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
 
 # Pre-download dependencies (offline safety)
 mvn dependency:resolve -q
@@ -67,7 +67,7 @@ Before going on stage, verify that the app can start in `demo` profile with HTTP
 
 ```bash
 # from project root
-cd DevoxxFR2026/04-Audit/crypto-audit-demo
+cd ./find-crypto-usages/04-Audit/crypto-audit-demo
 
 # clean build once (avoid stale class/resource surprises)
 mvn clean package -q
@@ -89,7 +89,7 @@ If startup fails, do not proceed with live demo before fixing this first.
 One-liner version:
 
 ```bash
-cd 01-PQC/demo/crypto-audit-demo && mvn clean package -q && timeout 20s java -jar target/crypto-audit-demo-0.0.1-SNAPSHOT.jar --spring.profiles.active=demo --server.ssl.key-store-password=changeit
+cd ./find-crypto-usages/04-Audit/crypto-audit-demo && mvn clean package -q && timeout 20s java -jar target/crypto-audit-demo-0.0.1-SNAPSHOT.jar --spring.profiles.active=demo --server.ssl.key-store-password=changeit
 ```
 
 ### Stage-Ready Command Set (Copy/Paste Safe)
@@ -98,15 +98,18 @@ Prepare these commands in a note so you can paste quickly during the talk:
 
 ```bash
 # 1) Full static audit (Layers 1–3)
+cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
 ./scripts/crypto-audit.sh --phase-pause .
 
 # 2) Layer 4a — JCE capability inventory
 java scripts/CryptoAuditJce.java 2>&1 | tail -20
 
 # 3) Layer 4b — TLS capability (cipher suites + named groups)
-java ../ciphercheck-demo/CipherSuiteCheck.java
+cd $HOME/find-crypto-usages/04-Audit/ciphercheck-demo
+java CipherSuiteCheck.java
 
 # 4) Layer 4 evidence — pre-captured JFR (core path, no live app needed)
+cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
 java scripts/CryptoAuditRuntime.java --file demo-output/pqc-live.jfr
 
 # 5) Start app in demo profile (Terminal A — for live JFR or custom-event capture, optional)
@@ -188,6 +191,7 @@ tree src/main/java -L 5
 ### Terminal
 
 ```bash
+cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
 ./scripts/crypto-audit.sh --phase-pause .
 ```
 
@@ -221,11 +225,11 @@ After you press Enter, Layer 2 output begins.
 
 > "Layer two — source code and frameworks.
 >
-> The real crypto is hidden behind framework APIs. Grep will not find it.
+> The real crypto is hidden behind framework APIs. Grep alone will miss it.
 >
 > (point to framework patterns) NimbusJwtEncoder signs JWTs with RSA.
 > NimbusJwtDecoder verifies signatures.
-> Both are quantum-vulnerable — but grep will not find them in your code.
+> Both are quantum-vulnerable — but grep alone will miss them in your code.
 >
 > (point to config section) And even here we already see server.ssl in your properties file.
 > We will come back to that in Layer three.
@@ -298,6 +302,7 @@ Layer 4 has two complementary views that must both be shown:
 ### Terminal
 
 ```bash
+cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
 java scripts/CryptoAuditJce.java 2>&1 | tail -20
 ```
 
@@ -334,7 +339,8 @@ java scripts/CryptoAuditJce.java 2>&1 | tail -20
 ### Terminal
 
 ```bash
-java ../ciphercheck-demo/CipherSuiteCheck.java
+cd $HOME/find-crypto-usages/04-Audit/ciphercheck-demo
+java CipherSuiteCheck.java
 ```
 
 ### Talk Track (after output)
@@ -351,8 +357,8 @@ java ../ciphercheck-demo/CipherSuiteCheck.java
 > And in TLS 1.3, the cipher suite does not identify the named group.
 >
 > So if I need the exact negotiated group,
-> I use JSSE handshake debug or the demo's custom JFR event.
-> Those are the two practical paths in this walkthrough for confirming the negotiated group.
+> I use JSSE handshake debug.
+> That is the practical path in this walkthrough for confirming the negotiated group.
 > For this short demo, I use `CipherSuiteCheck` for capability
 > and JFR for runtime evidence.
 > Now let me show the evidence view — what actually happened when traffic hit the service."
@@ -370,12 +376,13 @@ This step uses a pre-recorded JFR file. No live app or PID is required for the c
 > "JDK Flight Recorder can capture the crypto operations that actually happen at runtime.
 >
 > I recorded this while the demo app was serving real HTTPS traffic
-> and calling `/api/x509/validate-self`, which also runs an explicit PKIX validation.
+> over the demo endpoints.
 > Let me replay it."
 
 ### Terminal
 
 ```bash
+cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
 java scripts/CryptoAuditRuntime.java --file demo-output/pqc-live.jfr
 ```
 
@@ -394,11 +401,13 @@ java scripts/CryptoAuditRuntime.java --file demo-output/pqc-live.jfr
 > or hybrid X25519MLKEM768.
 > If I need the exact negotiated group,
 > I have to leave built-in `jdk.TLSHandshake` and use
-> `-Djavax.net.debug=ssl,handshake` or the demo's custom JFR event.
+> `-Djavax.net.debug=ssl,handshake`.
 > That is exactly why we needed CipherSuiteCheck — capability and evidence together.
 >
-> In this packaged recording, you can also see certificate validation events,
-> because the workload calls `/api/x509/validate-self` and performs an explicit PKIX check.
+> Depending on the workload that produced the recording, you may also see
+> certificate-validation-related events.
+> In the current live flow, `/api/health` and `/api/token` are enough to show
+> TLS activity, but they do not intentionally trigger an explicit PKIX validation path.
 > Security property changes still depend on workload."
 
 ### What the packaged recording proves and does not prove
@@ -409,15 +418,16 @@ Keep this in mind during the talk:
 |-------|------------------------------|
 | TLS handshakes observed | ✅ Yes |
 | Certificate algorithm observed | ✅ Yes |
-| X.509 validation events (`jdk.X509Validation`) | ✅ Yes |
+| X.509 validation events (`jdk.X509Validation`) | ⚠ Workload-dependent — not part of the current live flow |
 | Hybrid TLS (X25519MLKEM768) negotiation proved by built-in `jdk.TLSHandshake` | ❌ Not proved — named group not in `jdk.TLSHandshake` |
 
 Do not claim the packaged recording alone proves a hybrid handshake.
+Do not claim the packaged recording includes X.509 validation events unless you have
+checked the file and seen them.
 If you need the exact negotiated named group in this demo, use
-`-Djavax.net.debug=ssl,handshake` or record and inspect
-`com.example.pqcdemo.TlsHandshakeAudit`.
-You can claim that this packaged recording includes X.509 validation events,
-because the workload explicitly triggers them.
+`-Djavax.net.debug=ssl,handshake`.
+In the current walkthrough, `/api/health` and `/api/token`
+are the live traffic sources for TLS evidence.
 
 ---
 
@@ -463,6 +473,7 @@ you must either use a custom `.jfc` file or override event settings on the comma
 The script handles event enablement and PID-based live streaming automatically:
 
 ```bash
+cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
 java scripts/CryptoAuditRuntime.java --pid <PID> --duration 60
 ```
 
@@ -494,7 +505,7 @@ jcmd <PID> JFR.start name=PQC settings=/path/to/pqc-audit.jfc duration=60s filen
 
 **Precision note:** `CryptoAuditRuntime.java --pid` streams the built-in security events.
 It is useful for runtime evidence, but it does **not** by itself prove the exact negotiated
-named group. For that, use Section 6e: JSSE handshake debug or the demo's custom event.
+named group. For that, use Section 6e: JSSE handshake debug.
 
 #### JFR Live Recording — Exact Procedure
 
@@ -507,7 +518,7 @@ Use two or three terminals:
 **Step A — Start app in demo profile (Terminal A)**
 
 ```bash
-cd 01-PQC/demo/crypto-audit-demo
+cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
 java --add-opens java.base/sun.security.ssl=ALL-UNNAMED \
 	-jar target/crypto-audit-demo-0.0.1-SNAPSHOT.jar \
 	--spring.profiles.active=demo \
@@ -522,7 +533,7 @@ Wait until you see:
 **Step B — Find PID and start runtime stream (Terminal B)**
 
 ```bash
-cd 01-PQC/demo/crypto-audit-demo
+cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
 
 # find Java process ID
 jcmd -l | grep crypto-audit-demo
@@ -570,8 +581,8 @@ jcmd <PID> JFR.start name=PQC settings=profile \
 	+jdk.Deserialization#enabled=true
 
 # while the recording is running
-curl -sk https://localhost:8443/api/x509/validate-self
-curl -sk https://localhost:8443/api/x509/validate-self
+curl -sk https://localhost:8443/api/health
+curl -sk https://localhost:8443/api/health
 
 # after the recording finishes
 java scripts/CryptoAuditRuntime.java --file demo-output/pqc-live.jfr
@@ -587,8 +598,7 @@ This is **not** part of the core 10-minute flow.
 If someone asks for the **exact negotiated named group**, make the rule explicit:
 
 - built-in `jdk.TLSHandshake` is not enough in this JDK build
-- use `-Djavax.net.debug=ssl,handshake`, or
-- use the demo's custom JFR event `com.example.pqcdemo.TlsHandshakeAudit`
+- use `-Djavax.net.debug=ssl,handshake`
 
 ### Option A — JSSE handshake debug
 
@@ -596,13 +606,14 @@ If someone asks for the **exact negotiated named group**, make the rule explicit
 
 ```bash
 # Terminal A — restart the app with JSSE handshake debug
+cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
 java -Djavax.net.debug=ssl,handshake \
 	-jar target/crypto-audit-demo-0.0.1-SNAPSHOT.jar \
 	--spring.profiles.active=demo \
 	--server.ssl.key-store-password=changeit 2>&1 | tee /tmp/jsse-handshake.log
 
-# Terminal B — trigger one HTTPS self-call
-curl -sk https://localhost:8443/api/x509/validate-self
+# Terminal B — trigger one HTTPS request
+curl -sk https://localhost:8443/api/health
 
 # Terminal C — search the debug output for key-share / named-group details
 rg -i 'key_share|named group|x25519mlkem768|x25519|secp256r1' /tmp/jsse-handshake.log
@@ -616,50 +627,7 @@ rg -i 'key_share|named group|x25519mlkem768|x25519|secp256r1' /tmp/jsse-handshak
 > But it can show the key-share details that built-in `jdk.TLSHandshake` does not expose.
 >
 > So if someone asks, 'Was that handshake really hybrid?'
-> this is one practical way to confirm it on a developer laptop.
-> The other practical option in this demo is the custom JFR event."
-
-### Option B — Demo custom JFR event
-
-This path keeps the proof in a JFR artifact.
-It requires `--add-opens java.base/sun.security.ssl=ALL-UNNAMED`,
-because the demo captures the negotiated group from JSSE internals during certificate validation.
-
-### Terminal
-
-```bash
-# Terminal A — start the app with add-opens and a short recording
-java --add-opens java.base/sun.security.ssl=ALL-UNNAMED \
-	-XX:StartFlightRecording=name=PQC,settings=profile,filename=demo-output/pqc-custom.jfr,dumponexit=true \
-	-jar target/crypto-audit-demo-0.0.1-SNAPSHOT.jar \
-	--spring.profiles.active=demo \
-	--server.ssl.key-store-password=changeit
-
-# Terminal B — trigger the self-call that emits the custom event
-curl -sk https://localhost:8443/api/x509/validate-self
-
-# Terminal C — after stopping the app, inspect only the custom event
-jfr print --events com.example.pqcdemo.TlsHandshakeAudit demo-output/pqc-custom.jfr
-```
-
-Expected signal:
-
-- the JSON response from `/api/x509/validate-self` includes `negotiatedNamedGroup`
-- the custom JFR event shows `negotiatedNamedGroup = "X25519MLKEM768"` (or the group actually negotiated)
-
-### Talk Track
-
-> "This is still JFR, but now I am not relying only on the built-in handshake event.
->
-> The demo emits its own event, `com.example.pqcdemo.TlsHandshakeAudit`,
-> at the moment it performs the HTTPS self-call and certificate validation.
->
-> That custom event fills the exact gap we just discussed:
-> it records the negotiated named group, which built-in `jdk.TLSHandshake`
-> does not expose here.
->
-> So for this demo, exact named-group proof comes from one of two places:
-> JSSE handshake debug, or this custom JFR event."
+> this is the practical way to confirm it on the current demo app."
 
 ---
 
@@ -682,7 +650,7 @@ Expected signal:
 >
 > (point to the summary numbers)
 >
-> We found 25 crypto usage points in one small microservice.
+> We found 22 crypto usage points in one small microservice.
 > Most of them were invisible — hidden in framework APIs, config files, and keystores.
 >
 > Imagine your production system with 50 services.
@@ -707,6 +675,7 @@ Expected signal:
 
 ```bash
 # Show pre-captured output
+cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
 cat demo-output/crypto-audit-output.txt
 ```
 
@@ -721,15 +690,16 @@ cat demo-output/crypto-audit-output.txt
 
 ```bash
 # Verify path
-ls ../ciphercheck-demo/CipherSuiteCheck.java
+ls $HOME/find-crypto-usages/04-Audit/ciphercheck-demo/CipherSuiteCheck.java
 
 # Run with explicit Java path
-java ../ciphercheck-demo/CipherSuiteCheck.java
+java $HOME/find-crypto-usages/04-Audit/ciphercheck-demo/CipherSuiteCheck.java
 ```
 
 ### If demo profile app startup fails
 
 ```bash
+cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
 mvn clean package -q
 timeout 20s java -jar target/crypto-audit-demo-0.0.1-SNAPSHOT.jar \
 	--spring.profiles.active=demo \
@@ -739,6 +709,7 @@ timeout 20s java -jar target/crypto-audit-demo-0.0.1-SNAPSHOT.jar \
 If still failing, switch to pre-captured artifacts:
 
 ```bash
+cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
 cat demo-output/crypto-audit-output.txt
 java scripts/CryptoAuditRuntime.java --file demo-output/pqc-live.jfr
 ```
@@ -746,6 +717,7 @@ java scripts/CryptoAuditRuntime.java --file demo-output/pqc-live.jfr
 ### If pre-captured JFR file is missing
 
 ```bash
+cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
 # verify it exists
 ls -lh demo-output/pqc-live.jfr
 ```
@@ -753,6 +725,7 @@ ls -lh demo-output/pqc-live.jfr
 If missing, use `--help` to show what the live version does and describe the recording scenario:
 
 ```bash
+cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
 java scripts/CryptoAuditRuntime.java --help
 ```
 
@@ -762,10 +735,10 @@ Say:
 > It captures TLS handshakes, certificate algorithm observations,
 > and any security property changes triggered by that workload — with near-zero overhead.
 > The packaged demo recording was made under real HTTPS traffic,
-> and it also calls `/api/x509/validate-self`, so it shows TLS activity,
-> certificate algorithm observations, and X.509 validation events.
+> so it shows TLS activity and certificate algorithm observations.
+> X.509 validation events are workload-dependent and are not part of the current live path.
 > If I need the exact negotiated named group, I do not rely on built-in JFR alone;
-> I switch to JSSE handshake debug or the demo's custom JFR event."
+> I switch to JSSE handshake debug."
 
 ### If `--pid` mode fails (live JFR only)
 
@@ -783,10 +756,11 @@ jcmd <PID> JFR.start name=PQC settings=profile \
 	+jdk.Deserialization#enabled=true
 
 # while the recording is running
-curl -sk https://localhost:8443/api/x509/validate-self
-curl -sk https://localhost:8443/api/x509/validate-self
+curl -sk https://localhost:8443/api/health
+curl -sk https://localhost:8443/api/health
 
 # then analyse the saved recording
+cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
 java scripts/CryptoAuditRuntime.java --file demo-output/pqc-live.jfr
 ```
 
@@ -799,7 +773,7 @@ Use Ctrl+= (Cmd+=) to increase font size, or switch to pre-captured screenshots.
 Skip directly to the summary:
 
 > "Due to time, let me jump to the results.
-> We found 25 crypto usage points. Most were invisible. Let me explain the prioritisation."
+> We found 22 crypto usage points. Most were invisible. Let me explain the prioritisation."
 
 ---
 

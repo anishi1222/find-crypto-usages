@@ -1,13 +1,18 @@
 package dev.logicojp.example.pqchybridtls.client;
 
+import dev.logicojp.example.pqchybridtls.jfr.TlsHandshakeAuditEvent;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.lang.reflect.Field;
+import java.lang.reflect.InaccessibleObjectException;
+import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -16,25 +21,32 @@ import java.security.KeyStore;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
+import javax.net.ssl.SSLEngine;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLPeerUnverifiedException;
+import javax.net.ssl.SSLSession;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
-import javax.net.ssl.X509TrustManager;
+import javax.net.ssl.X509ExtendedTrustManager;
 
 public final class HybridTlsClient {
 
     private static final String DEFAULT_URL = "https://localhost:8443/api/hello?name=HybridTLS";
     private static final String DEFAULT_NAMED_GROUP = "X25519MLKEM768";
     private static final String DEFAULT_STORE_TYPE = "PKCS12";
+    private static final String NEGOTIATED_NAMED_GROUP_HEADER = "X-PQC-Negotiated-Named-Group";
+    private static final String ADD_OPENS_HINT =
+            "unavailable (add --add-opens java.base/sun.security.ssl=ALL-UNNAMED)";
 
     private HybridTlsClient() {
     }
@@ -61,8 +73,8 @@ public final class HybridTlsClient {
 
     static ResponseDetails connect(ClientOptions options) throws IOException, GeneralSecurityException {
         URI uri = options.uri();
-        SSLContext sslContext = createSslContext(options);
-        SSLSocketFactory socketFactory = sslContext.getSocketFactory();
+        SslRuntime sslRuntime = createSslContext(options);
+        SSLSocketFactory socketFactory = sslRuntime.sslContext().getSocketFactory();
         int port = uri.getPort() == -1 ? 443 : uri.getPort();
 
         try (SSLSocket socket = (SSLSocket) socketFactory.createSocket()) {
@@ -77,8 +89,22 @@ public final class HybridTlsClient {
 
             socket.startHandshake();
 
-            String tlsProtocol = socket.getSession().getProtocol();
-            String cipherSuite = socket.getSession().getCipherSuite();
+            SSLSession sslSession = socket.getSession();
+            String tlsProtocol = sslSession.getProtocol();
+            String cipherSuite = sslSession.getCipherSuite();
+            String negotiatedNamedGroup = resolveNegotiatedNamedGroup(
+                    sslRuntime.negotiatedNamedGroupCapture().get(),
+                    sslSession
+            );
+            X509Certificate peerCertificate = resolvePeerCertificate(sslSession);
+            emitTlsHandshakeAuditEvent(
+                    uri,
+                    sslRuntime.sslContext(),
+                    tlsProtocol,
+                    cipherSuite,
+                    negotiatedNamedGroup,
+                    peerCertificate
+            );
             String peerPrincipal = peerPrincipal(socket);
             String statusLine;
             String responseBody;
@@ -91,6 +117,7 @@ public final class HybridTlsClient {
                 writer.write("GET " + requestPath(uri) + " HTTP/1.1\r\n");
                 writer.write("Host: " + hostHeader(uri) + "\r\n");
                 writer.write("Accept: application/json\r\n");
+                writer.write(NEGOTIATED_NAMED_GROUP_HEADER + ": " + negotiatedNamedGroup + "\r\n");
                 writer.write("Connection: close\r\n");
                 writer.write("\r\n");
                 writer.flush();
@@ -104,7 +131,8 @@ public final class HybridTlsClient {
         }
     }
 
-    private static SSLContext createSslContext(ClientOptions options) throws IOException, GeneralSecurityException {
+    private static SslRuntime createSslContext(ClientOptions options) throws IOException, GeneralSecurityException {
+        AtomicReference<String> negotiatedNamedGroupCapture = new AtomicReference<>();
         KeyManager[] keyManagers = null;
         if (options.clientKeyStorePath() != null) {
             keyManagers = loadKeyManagers(
@@ -115,20 +143,11 @@ public final class HybridTlsClient {
             );
         }
 
-        TrustManager[] trustManagers = null;
-        if (options.trustAll()) {
-            trustManagers = insecureTrustManagers();
-        } else if (options.trustStorePath() != null) {
-            trustManagers = loadTrustManagers(
-                    options.trustStorePath(),
-                    options.trustStorePassword(),
-                    options.trustStoreType()
-            );
-        }
+        TrustManager[] trustManagers = resolveTrustManagers(options, negotiatedNamedGroupCapture);
 
         SSLContext sslContext = SSLContext.getInstance("TLS");
         sslContext.init(keyManagers, trustManagers, new SecureRandom());
-        return sslContext;
+        return new SslRuntime(sslContext, negotiatedNamedGroupCapture);
     }
 
     private static KeyManager[] loadKeyManagers(
@@ -154,6 +173,32 @@ public final class HybridTlsClient {
                 TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
         trustManagerFactory.init(trustStore);
         return trustManagerFactory.getTrustManagers();
+    }
+
+    private static TrustManager[] loadDefaultTrustManagers() throws GeneralSecurityException {
+        TrustManagerFactory trustManagerFactory =
+                TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        trustManagerFactory.init((KeyStore) null);
+        return trustManagerFactory.getTrustManagers();
+    }
+
+    private static TrustManager[] resolveTrustManagers(
+            ClientOptions options,
+            AtomicReference<String> negotiatedNamedGroupCapture
+    ) throws IOException, GeneralSecurityException {
+        TrustManager[] trustManagers;
+        if (options.trustAll()) {
+            trustManagers = insecureTrustManagers();
+        } else if (options.trustStorePath() != null) {
+            trustManagers = loadTrustManagers(
+                    options.trustStorePath(),
+                    options.trustStorePassword(),
+                    options.trustStoreType()
+            );
+        } else {
+            trustManagers = loadDefaultTrustManagers();
+        }
+        return wrapTrustManagers(trustManagers, negotiatedNamedGroupCapture);
     }
 
     private static KeyStore loadKeyStore(Path keyStorePath, String password, String keyStoreType)
@@ -270,13 +315,29 @@ public final class HybridTlsClient {
 
     private static TrustManager[] insecureTrustManagers() {
         return new TrustManager[]{
-                new X509TrustManager() {
+                new X509ExtendedTrustManager() {
                     @Override
                     public void checkClientTrusted(X509Certificate[] chain, String authType) {
                     }
 
                     @Override
                     public void checkServerTrusted(X509Certificate[] chain, String authType) {
+                    }
+
+                    @Override
+                    public void checkClientTrusted(X509Certificate[] chain, String authType, Socket socket) {
+                    }
+
+                    @Override
+                    public void checkServerTrusted(X509Certificate[] chain, String authType, Socket socket) {
+                    }
+
+                    @Override
+                    public void checkClientTrusted(X509Certificate[] chain, String authType, SSLEngine engine) {
+                    }
+
+                    @Override
+                    public void checkServerTrusted(X509Certificate[] chain, String authType, SSLEngine engine) {
                     }
 
                     @Override
@@ -356,6 +417,91 @@ public final class HybridTlsClient {
         return baseReason;
     }
 
+    private static String resolveNegotiatedNamedGroup(String capturedNamedGroup, SSLSession session) {
+        if (!isUnavailable(capturedNamedGroup)) {
+            return capturedNamedGroup;
+        }
+        String sessionDerivedNamedGroup = extractNegotiatedNamedGroupFromSession(session);
+        if (!isUnavailable(sessionDerivedNamedGroup)) {
+            return sessionDerivedNamedGroup;
+        }
+        return capturedNamedGroup != null ? capturedNamedGroup : sessionDerivedNamedGroup;
+    }
+
+    private static boolean isUnavailable(String value) {
+        return value == null || value.isBlank() || value.startsWith("unavailable");
+    }
+
+    private static String extractNegotiatedNamedGroupFromSession(SSLSession session) {
+        try {
+            Field field = session.getClass().getDeclaredField("namedGroup");
+            field.setAccessible(true);
+            Object namedGroup = field.get(session);
+            return namedGroup != null ? namedGroup.toString() : "none";
+        } catch (InaccessibleObjectException exception) {
+            return ADD_OPENS_HINT;
+        } catch (NoSuchFieldException | IllegalAccessException exception) {
+            return "unavailable (" + exception.getClass().getSimpleName() + ")";
+        }
+    }
+
+    private static X509Certificate resolvePeerCertificate(SSLSession session) {
+        try {
+            var peerCertificates = session.getPeerCertificates();
+            if (peerCertificates.length > 0 && peerCertificates[0] instanceof X509Certificate certificate) {
+                return certificate;
+            }
+            return null;
+        } catch (SSLPeerUnverifiedException exception) {
+            return null;
+        }
+    }
+
+    private static void emitTlsHandshakeAuditEvent(
+            URI targetUri,
+            SSLContext sslContext,
+            String tlsProtocol,
+            String cipherSuite,
+            String negotiatedNamedGroup,
+            X509Certificate peerCertificate
+    ) {
+        TlsHandshakeAuditEvent event = new TlsHandshakeAuditEvent();
+        event.begin();
+        event.targetUrl = targetUri.toString();
+        event.tlsVersion = tlsProtocol;
+        event.cipherSuite = cipherSuite;
+        event.negotiatedNamedGroup = negotiatedNamedGroup;
+        event.configuredNamedGroups = extractConfiguredNamedGroups(sslContext);
+        event.certSigAlgorithm = peerCertificate != null ? peerCertificate.getSigAlgName() : "unavailable";
+        event.peerSubject = peerCertificate != null
+                ? peerCertificate.getSubjectX500Principal().getName()
+                : "unavailable";
+        event.commit();
+    }
+
+    private static String extractConfiguredNamedGroups(SSLContext sslContext) {
+        String[] namedGroups = sslContext.getDefaultSSLParameters().getNamedGroups();
+        return (namedGroups != null && namedGroups.length > 0)
+                ? String.join(", ", namedGroups)
+                : "default";
+    }
+
+    private static TrustManager[] wrapTrustManagers(
+            TrustManager[] trustManagers,
+            AtomicReference<String> negotiatedNamedGroupCapture
+    ) {
+        TrustManager[] wrappedTrustManagers = Arrays.copyOf(trustManagers, trustManagers.length);
+        for (int index = 0; index < wrappedTrustManagers.length; index++) {
+            if (wrappedTrustManagers[index] instanceof X509ExtendedTrustManager trustManager) {
+                wrappedTrustManagers[index] = new NegotiatedNamedGroupCaptureTrustManager(
+                        trustManager,
+                        negotiatedNamedGroupCapture
+                );
+            }
+        }
+        return wrappedTrustManagers;
+    }
+
     private static void appendJsonField(StringBuilder json, String name, String value, boolean withComma) {
         json.append("  \"")
                 .append(escapeJson(name))
@@ -392,6 +538,152 @@ public final class HybridTlsClient {
             }
         }
         return escaped.toString();
+    }
+
+    private static final class NegotiatedNamedGroupCaptureTrustManager extends X509ExtendedTrustManager {
+
+        private final X509ExtendedTrustManager delegate;
+        private final AtomicReference<String> negotiatedNamedGroupCapture;
+
+        private NegotiatedNamedGroupCaptureTrustManager(
+                X509ExtendedTrustManager delegate,
+                AtomicReference<String> negotiatedNamedGroupCapture
+        ) {
+            this.delegate = delegate;
+            this.negotiatedNamedGroupCapture = negotiatedNamedGroupCapture;
+        }
+
+        @Override
+        public void checkClientTrusted(X509Certificate[] chain, String authType) throws java.security.cert.CertificateException {
+            delegate.checkClientTrusted(chain, authType);
+        }
+
+        @Override
+        public void checkServerTrusted(X509Certificate[] chain, String authType) throws java.security.cert.CertificateException {
+            delegate.checkServerTrusted(chain, authType);
+        }
+
+        @Override
+        public X509Certificate[] getAcceptedIssuers() {
+            return delegate.getAcceptedIssuers();
+        }
+
+        @Override
+        public void checkClientTrusted(X509Certificate[] chain, String authType, Socket socket)
+                throws java.security.cert.CertificateException {
+            delegate.checkClientTrusted(chain, authType, socket);
+        }
+
+        @Override
+        public void checkServerTrusted(X509Certificate[] chain, String authType, Socket socket)
+                throws java.security.cert.CertificateException {
+            captureFromTransport(socket);
+            delegate.checkServerTrusted(chain, authType, socket);
+        }
+
+        @Override
+        public void checkClientTrusted(X509Certificate[] chain, String authType, SSLEngine engine)
+                throws java.security.cert.CertificateException {
+            delegate.checkClientTrusted(chain, authType, engine);
+        }
+
+        @Override
+        public void checkServerTrusted(X509Certificate[] chain, String authType, SSLEngine engine)
+                throws java.security.cert.CertificateException {
+            captureFromTransport(engine);
+            delegate.checkServerTrusted(chain, authType, engine);
+        }
+
+        private void captureFromTransport(Object transport) {
+            if (transport == null || hasCapturedNamedGroup()) {
+                return;
+            }
+
+            try {
+                Object transportContext = readField(transport, "conContext");
+                Object handshakeContext = readField(transportContext, "handshakeContext");
+                if (handshakeContext == null) {
+                    return;
+                }
+
+                String namedGroup = extractNamedGroupFromHandshakeContext(handshakeContext);
+                if (namedGroup != null && !namedGroup.isBlank()) {
+                    negotiatedNamedGroupCapture.set(namedGroup);
+                } else {
+                    setUnavailableIfAbsent("unavailable (key_share extension missing)");
+                }
+            } catch (InaccessibleObjectException exception) {
+                setUnavailableIfAbsent(ADD_OPENS_HINT);
+            } catch (ReflectiveOperationException exception) {
+                setUnavailableIfAbsent("unavailable (" + exception.getClass().getSimpleName() + ")");
+            }
+        }
+
+        private boolean hasCapturedNamedGroup() {
+            String current = negotiatedNamedGroupCapture.get();
+            return current != null && !current.startsWith("unavailable");
+        }
+
+        private void setUnavailableIfAbsent(String reason) {
+            negotiatedNamedGroupCapture.compareAndSet(null, reason);
+        }
+
+        private static String extractNamedGroupFromHandshakeContext(Object handshakeContext)
+                throws ReflectiveOperationException {
+            Object extensionsObject = readField(handshakeContext, "handshakeExtensions");
+            if (!(extensionsObject instanceof Map<?, ?> extensions)) {
+                return null;
+            }
+
+            for (Object extensionSpec : extensions.values()) {
+                if (extensionSpec == null) {
+                    continue;
+                }
+                String simpleName = extensionSpec.getClass().getSimpleName();
+                if ("SHKeyShareSpec".equals(simpleName)) {
+                    Object serverShare = readField(extensionSpec, "serverShare");
+                    int namedGroupId = ((Number) readField(serverShare, "namedGroupId")).intValue();
+                    return namedGroupName(namedGroupId);
+                }
+                if ("HRRKeyShareSpec".equals(simpleName)) {
+                    int namedGroupId = ((Number) readField(extensionSpec, "selectedGroup")).intValue();
+                    return namedGroupName(namedGroupId);
+                }
+            }
+            return null;
+        }
+
+        private static String namedGroupName(int namedGroupId) throws ReflectiveOperationException {
+            Class<?> namedGroupClass = Class.forName("sun.security.ssl.NamedGroup");
+            Method nameOf = namedGroupClass.getDeclaredMethod("nameOf", int.class);
+            nameOf.setAccessible(true);
+            Object groupName = nameOf.invoke(null, namedGroupId);
+            return groupName != null ? groupName.toString() : "UNDEFINED-NAMED-GROUP(" + namedGroupId + ")";
+        }
+
+        private static Object readField(Object target, String fieldName) throws ReflectiveOperationException {
+            Field field = findField(target.getClass(), fieldName);
+            field.setAccessible(true);
+            return field.get(target);
+        }
+
+        private static Field findField(Class<?> type, String fieldName) throws NoSuchFieldException {
+            Class<?> current = type;
+            while (current != null) {
+                try {
+                    return current.getDeclaredField(fieldName);
+                } catch (NoSuchFieldException ignored) {
+                    current = current.getSuperclass();
+                }
+            }
+            throw new NoSuchFieldException(fieldName);
+        }
+    }
+
+    private record SslRuntime(
+            SSLContext sslContext,
+            AtomicReference<String> negotiatedNamedGroupCapture
+    ) {
     }
 
     record ResponseDetails(

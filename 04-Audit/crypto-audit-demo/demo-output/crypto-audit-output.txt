@@ -3,8 +3,8 @@
 [1;37mPQC CRYPTOGRAPHIC AUDIT[0m
 [1;36m============================================================[0m
 
-  [1mTarget project:[0m /home/logico_jp/JavaZone-DevoxxPL/01-PQC/demo/crypto-audit-demo
-  [1mDate:[0m           2026-04-08 17:55:16
+  [1mTarget project:[0m /home/logico_jp/find-crypto-usages/04-Audit/crypto-audit-demo
+  [1mDate:[0m           2026-04-16 13:11:22
   [1mJava version:[0m   openjdk version "27-ea" 2026-09-15
 
 
@@ -36,16 +36,10 @@
   [1;35m────────────────────────────────────────────────[0m
     [2mℹ  Mac.getInstance — HMAC computation: comment-only references detected (not counted as findings)[0m
       [2m[comment] src/main/java/com/example/pqcdemo/service/HmacService.java:19: * rather than the JCE {@code Mac.getInstance()} call, which is the pattern used[0m
-    [1;33m🟡[0m TrustManagerFactory.getInstance — TLS trust config
-      [2msrc/main/java/com/example/pqcdemo/service/X509ValidationDemoService.java:115:        TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance([0m
     [2mℹ  Signature.getInstance — digital signatures: comment-only references detected (not counted as findings)[0m
       [2m[comment] src/main/java/com/example/pqcdemo/service/LicenseService.java:44: *       {@code Signature.getInstance(...)} calls</li>[0m
       [2m[comment] src/main/java/com/example/pqcdemo/service/JwtService.java:23: *       ({@code Signature.getInstance("SHA256withRSA")}) is buried in the[0m
-    [1;33m🟡[0m SSLContext.getInstance — TLS configuration
-      [2msrc/main/java/com/example/pqcdemo/service/X509ValidationDemoService.java:120:        SSLContext sslContext = SSLContext.getInstance("TLS");[0m
     [1;33m🟡[0m KeyStore.getInstance — keystore access
-      [2msrc/main/java/com/example/pqcdemo/service/X509ValidationDemoService.java:88:        KeyStore keyStore = KeyStore.getInstance("PKCS12");[0m
-      [2msrc/main/java/com/example/pqcdemo/service/X509ValidationDemoService.java:111:        KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());[0m
       [2msrc/main/java/com/example/pqcdemo/service/LicenseService.java:81:        KeyStore keyStore = KeyStore.getInstance("PKCS12");[0m
       [2msrc/main/java/com/example/pqcdemo/config/SecurityConfig.java:89:            KeyStore keyStore = KeyStore.getInstance("PKCS12");[0m
 
@@ -66,7 +60,7 @@
   [1;35m────────────────────────────────────────────────[0m
     [1;33m🟡[0m server.ssl.* — Spring Boot TLS configuration found
       [2msrc/main/resources/application-demo.properties:14:server.ssl.key-store-password=changeit[0m
-      [2msrc/main/resources/application-demo.properties:24:server.ssl.client-auth=none[0m
+      [2msrc/main/resources/application-demo.properties:22:server.ssl.client-auth=none[0m
       [2msrc/main/resources/application.properties:23:server.ssl.enabled=true[0m
       [2msrc/main/resources/application.properties:24:server.ssl.key-store=classpath:keystore.p12[0m
       [2msrc/main/resources/application.properties:25:server.ssl.key-store-password=${SERVER_SSL_KEYSTORE_PASSWORD}[0m
@@ -79,7 +73,6 @@
       [2msrc/main/resources/application-demo.properties:14:server.ssl.key-store-password=changeit[0m
       [2msrc/main/resources/application-demo.properties:17:app.security.jwt.keystore.password=changeit[0m
       [2msrc/main/resources/application-demo.properties:20:app.license.keystore.password=changeit[0m
-      [2msrc/main/resources/application-demo.properties:23:app.demo.x509.keystore.alias=server[0m
       [2msrc/main/resources/application.properties:24:server.ssl.key-store=classpath:keystore.p12[0m
       [2msrc/main/resources/application.properties:25:server.ssl.key-store-password=${SERVER_SSL_KEYSTORE_PASSWORD}[0m
       [2msrc/main/resources/application.properties:26:server.ssl.key-store-type=PKCS12[0m
@@ -89,7 +82,6 @@
       [2msrc/main/resources/application.properties:50:app.license.keystore.path=${APP_LICENSE_KEYSTORE_PATH:classpath:keystore.p12}[0m
       [2msrc/main/resources/application.properties:51:app.license.keystore.password=${APP_LICENSE_KEYSTORE_PASSWORD}[0m
       [2msrc/main/resources/application.properties:52:app.license.keystore.alias=${APP_LICENSE_KEY_ALIAS:server}[0m
-      [2msrc/main/resources/application.properties:63:app.demo.x509.keystore.alias=${APP_DEMO_X509_KEY_ALIAS:server}[0m
 
   [1;35m────────────────────────────────────────────────[0m
   [1mTiming Side-Channel Patterns[0m
@@ -102,13 +94,13 @@
   [1mFramework / Library API Patterns (require library knowledge)[0m
   [1;35m────────────────────────────────────────────────[0m
     [1;31m🔴[0m Spring Security Nimbus JWT — RSA/ECDSA JWT signing (algorithm hidden in decoder/encoder config)
-      [2msrc/main/java/com/example/pqcdemo/controller/ApiController.java:163:                "note", "Signed via Spring Security NimbusJwtEncoder"[0m
+      [2msrc/main/java/com/example/pqcdemo/controller/ApiController.java:159:                "note", "Signed via Spring Security NimbusJwtEncoder"[0m
       [2msrc/main/java/com/example/pqcdemo/config/SecurityConfig.java:23:import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;[0m
       [2msrc/main/java/com/example/pqcdemo/config/SecurityConfig.java:24:import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;[0m
       [2msrc/main/java/com/example/pqcdemo/config/SecurityConfig.java:144:        NimbusJwtDecoder decoder = NimbusJwtDecoder.withPublicKey(publicKey).build();[0m
       [2msrc/main/java/com/example/pqcdemo/config/SecurityConfig.java:158:        return new NimbusJwtEncoder(new ImmutableJWKSet<>(new JWKSet(rsaKey)));[0m
     [2mℹ  Spring Security Nimbus JWT — RSA/ECDSA JWT signing (algorithm hidden in decoder/encoder config): comment-only references shown below are not counted as findings[0m
-      [2m[comment] src/main/java/com/example/pqcdemo/controller/ApiController.java:62:     * {@code NimbusJwtDecoder} — RSA signature verification happens[0m
+      [2m[comment] src/main/java/com/example/pqcdemo/controller/ApiController.java:58:     * {@code NimbusJwtDecoder} — RSA signature verification happens[0m
       [2m[comment] src/main/java/com/example/pqcdemo/service/JwtService.java:22: *       Spring Security's {@code NimbusJwtEncoder}. The crypto call[0m
       [2m[comment] src/main/java/com/example/pqcdemo/service/JwtService.java:48:     * <p>The actual RSA signing happens inside {@code NimbusJwtEncoder},[0m
       [2m[comment] src/main/java/com/example/pqcdemo/config/SecurityConfig.java:39: *   <li><b>🔴 JWT signature verification</b> — Spring Security's {@code NimbusJwtDecoder}[0m
@@ -155,17 +147,17 @@
   [1;35m────────────────────────────────────────────────[0m
     [2mAlias name: demo-ca[0m
     [2mEntry type: trustedCertEntry[0m
-    [2mValid from: Wed Apr 08 17:52:22 JST 2026 until: Sat Apr 05 17:52:22 JST 2036[0m
+    [2mValid from: Tue Apr 14 11:52:24 JST 2026 until: Fri Apr 11 11:52:24 JST 2036[0m
     [2mSignature algorithm name: SHA256withRSA[0m
     [2mAlias name: server[0m
     [2mEntry type: PrivateKeyEntry[0m
-    [2mValid from: Wed Apr 08 17:52:24 JST 2026 until: Tue Jul 11 17:52:24 JST 2028[0m
-    [2mSignature algorithm name: SHA384withRSA[0m
-    [2mValid from: Wed Apr 08 17:52:22 JST 2026 until: Sat Apr 05 17:52:22 JST 2036[0m
+    [2mValid from: Tue Apr 14 11:52:26 JST 2026 until: Mon Jul 17 11:52:26 JST 2028[0m
+    [2mSignature algorithm name: SHA256withRSA[0m
+    [2mValid from: Tue Apr 14 11:52:24 JST 2026 until: Fri Apr 11 11:52:24 JST 2036[0m
     [2mSignature algorithm name: SHA256withRSA[0m
     [1;31m🔴[0m Keystore src/main/resources/keystore.p12: contains quantum-vulnerable keys/signatures
       [1;31mSignature algorithm name: SHA256withRSA[0m
-      [1;31mSignature algorithm name: SHA384withRSA[0m
+      [1;31mSignature algorithm name: SHA256withRSA[0m
       [1;31mSignature algorithm name: SHA256withRSA[0m
 
   [1;35m────────────────────────────────────────────────[0m
@@ -177,7 +169,7 @@
 [1;37mPQC CRYPTOGRAPHIC AUDIT SUMMARY[0m
 [1;36m============================================================[0m
 
-  [1mTotal crypto usage points found: [1;37m24[0m
+  [1mTotal crypto usage points found: [1;37m22[0m
 
   [1;31m🔴 QUANTUM-VULNERABLE (requires PQC migration): 5[0m
      - Nimbus JOSE+JWT — JWT/JWE crypto: com.nimbusds:nimbus-jose-jwt:jar:9.37.4:compile
@@ -186,14 +178,12 @@
      - Bouncy Castle ContentSigner — digital signature (algorithm string in builder constructor, e.g. SHA256withRSA)
      - Keystore src/main/resources/keystore.p12: contains quantum-vulnerable keys/signatures
 
-  [1;33m🟡 ATTENTION (review recommended): 16[0m
+  [1;33m🟡 ATTENTION (review recommended): 14[0m
      - PostgreSQL JDBC — internal TLS for DB connections: org.postgresql:postgresql:jar:42.7.10:runtime
      - Bouncy Castle — general-purpose crypto provider: org.bouncycastle:bcprov-jdk18on:jar:1.83:compile
      - Google Tink — crypto abstraction library: com.google.crypto.tink:tink:jar:1.9.0:compile
      - Spring Security — contains crypto primitives: org.springframework.security:spring-security-config:jar:6.5.9:compile
      - JDK built-in JCA/JCE — review algorithm choices in source code
-     - TrustManagerFactory.getInstance — TLS trust config
-     - SSLContext.getInstance — TLS configuration
      - KeyStore.getInstance — keystore access
      - server.ssl.* — Spring Boot TLS configuration found
      - Datasource with SSL params — DB connection uses TLS
