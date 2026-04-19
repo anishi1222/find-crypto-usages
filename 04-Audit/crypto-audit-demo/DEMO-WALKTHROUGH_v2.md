@@ -47,7 +47,7 @@ java -version
 mvn -version
 
 # Navigate to demo directory
-cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
+cd 04-Audit/crypto-audit-demo
 
 # Pre-download dependencies (offline safety)
 mvn dependency:resolve -q
@@ -67,7 +67,7 @@ Before going on stage, verify that the app can start in `demo` profile with HTTP
 
 ```bash
 # from project root
-cd ./find-crypto-usages/04-Audit/crypto-audit-demo
+cd 04-Audit/crypto-audit-demo
 
 # clean build once (avoid stale class/resource surprises)
 mvn clean package -q
@@ -89,7 +89,7 @@ If startup fails, do not proceed with live demo before fixing this first.
 One-liner version:
 
 ```bash
-cd ./find-crypto-usages/04-Audit/crypto-audit-demo && mvn clean package -q && timeout 20s java -jar target/crypto-audit-demo-0.0.1-SNAPSHOT.jar --spring.profiles.active=demo --server.ssl.key-store-password=changeit
+cd 04-Audit/crypto-audit-demo && mvn clean package -q && timeout 20s java -jar target/crypto-audit-demo-0.0.1-SNAPSHOT.jar --spring.profiles.active=demo --server.ssl.key-store-password=changeit
 ```
 
 ### Stage-Ready Command Set (Copy/Paste Safe)
@@ -98,18 +98,18 @@ Prepare these commands in a note so you can paste quickly during the talk:
 
 ```bash
 # 1) Full static audit (Layers 1–3)
-cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
+cd 04-Audit/crypto-audit-demo
 ./scripts/crypto-audit.sh --phase-pause .
 
 # 2) Layer 4a — JCE capability inventory
 java scripts/CryptoAuditJce.java 2>&1 | tail -20
 
 # 3) Layer 4b — TLS capability (cipher suites + named groups)
-cd $HOME/find-crypto-usages/04-Audit/ciphercheck-demo
+cd 04-Audit/ciphercheck-demo
 java CipherSuiteCheck.java
 
 # 4) Layer 4 evidence — pre-captured JFR (core path, no live app needed)
-cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
+cd 04-Audit/crypto-audit-demo
 java scripts/CryptoAuditRuntime.java --file demo-output/pqc-live.jfr
 
 # 5) Start app in demo profile (Terminal A — for live JFR or custom-event capture, optional)
@@ -191,7 +191,7 @@ tree src/main/java -L 5
 ### Terminal
 
 ```bash
-cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
+cd 04-Audit/crypto-audit-demo
 ./scripts/crypto-audit.sh --phase-pause .
 ```
 
@@ -302,7 +302,7 @@ Layer 4 has two complementary views that must both be shown:
 ### Terminal
 
 ```bash
-cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
+cd 04-Audit/crypto-audit-demo
 java scripts/CryptoAuditJce.java 2>&1 | tail -20
 ```
 
@@ -339,7 +339,7 @@ java scripts/CryptoAuditJce.java 2>&1 | tail -20
 ### Terminal
 
 ```bash
-cd $HOME/find-crypto-usages/04-Audit/ciphercheck-demo
+cd 04-Audit/ciphercheck-demo
 java CipherSuiteCheck.java
 ```
 
@@ -382,7 +382,7 @@ This step uses a pre-recorded JFR file. No live app or PID is required for the c
 ### Terminal
 
 ```bash
-cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
+cd 04-Audit/crypto-audit-demo
 java scripts/CryptoAuditRuntime.java --file demo-output/pqc-live.jfr
 ```
 
@@ -473,7 +473,7 @@ you must either use a custom `.jfc` file or override event settings on the comma
 The script handles event enablement and PID-based live streaming automatically:
 
 ```bash
-cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
+cd 04-Audit/crypto-audit-demo
 java scripts/CryptoAuditRuntime.java --pid <PID> --duration 60
 ```
 
@@ -518,7 +518,7 @@ Use two or three terminals:
 **Step A — Start app in demo profile (Terminal A)**
 
 ```bash
-cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
+cd 04-Audit/crypto-audit-demo
 java --add-opens java.base/sun.security.ssl=ALL-UNNAMED \
 	-jar target/crypto-audit-demo-0.0.1-SNAPSHOT.jar \
 	--spring.profiles.active=demo \
@@ -533,7 +533,7 @@ Wait until you see:
 **Step B — Find PID and start runtime stream (Terminal B)**
 
 ```bash
-cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
+cd 04-Audit/crypto-audit-demo
 
 # find Java process ID
 jcmd -l | grep crypto-audit-demo
@@ -606,7 +606,7 @@ If someone asks for the **exact negotiated named group**, make the rule explicit
 
 ```bash
 # Terminal A — restart the app with JSSE handshake debug
-cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
+cd 04-Audit/crypto-audit-demo
 java -Djavax.net.debug=ssl,handshake \
 	-jar target/crypto-audit-demo-0.0.1-SNAPSHOT.jar \
 	--spring.profiles.active=demo \
@@ -675,7 +675,7 @@ rg -i 'key_share|named group|x25519mlkem768|x25519|secp256r1' /tmp/jsse-handshak
 
 ```bash
 # Show pre-captured output
-cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
+cd 04-Audit/crypto-audit-demo
 cat demo-output/crypto-audit-output.txt
 ```
 
@@ -690,16 +690,16 @@ cat demo-output/crypto-audit-output.txt
 
 ```bash
 # Verify path
-ls $HOME/find-crypto-usages/04-Audit/ciphercheck-demo/CipherSuiteCheck.java
+ls 04-Audit/ciphercheck-demo/CipherSuiteCheck.java
 
 # Run with explicit Java path
-java $HOME/find-crypto-usages/04-Audit/ciphercheck-demo/CipherSuiteCheck.java
+java 04-Audit/ciphercheck-demo/CipherSuiteCheck.java
 ```
 
 ### If demo profile app startup fails
 
 ```bash
-cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
+cd 04-Audit/crypto-audit-demo
 mvn clean package -q
 timeout 20s java -jar target/crypto-audit-demo-0.0.1-SNAPSHOT.jar \
 	--spring.profiles.active=demo \
@@ -709,7 +709,7 @@ timeout 20s java -jar target/crypto-audit-demo-0.0.1-SNAPSHOT.jar \
 If still failing, switch to pre-captured artifacts:
 
 ```bash
-cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
+cd 04-Audit/crypto-audit-demo
 cat demo-output/crypto-audit-output.txt
 java scripts/CryptoAuditRuntime.java --file demo-output/pqc-live.jfr
 ```
@@ -717,7 +717,7 @@ java scripts/CryptoAuditRuntime.java --file demo-output/pqc-live.jfr
 ### If pre-captured JFR file is missing
 
 ```bash
-cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
+cd 04-Audit/crypto-audit-demo
 # verify it exists
 ls -lh demo-output/pqc-live.jfr
 ```
@@ -725,7 +725,7 @@ ls -lh demo-output/pqc-live.jfr
 If missing, use `--help` to show what the live version does and describe the recording scenario:
 
 ```bash
-cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
+cd 04-Audit/crypto-audit-demo
 java scripts/CryptoAuditRuntime.java --help
 ```
 
@@ -760,7 +760,7 @@ curl -sk https://localhost:8443/api/health
 curl -sk https://localhost:8443/api/health
 
 # then analyse the saved recording
-cd $HOME/find-crypto-usages/04-Audit/crypto-audit-demo
+cd 04-Audit/crypto-audit-demo
 java scripts/CryptoAuditRuntime.java --file demo-output/pqc-live.jfr
 ```
 
