@@ -8,7 +8,7 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.12</version>
+        <version>3.5.13</version>
         <relativePath/>
     </parent>
 
@@ -27,7 +27,7 @@
         <bouncycastle.version>1.84</bouncycastle.version>
     </properties>
     <!-- Override jackson-core to fix GHSA-72hv-8253-57qq (DoS via async parser) -->
-    <dependencyManagement>
+    <!-- <dependencyManagement>
         <dependencies>
             <dependency>
                 <groupId>com.fasterxml.jackson.core</groupId>
@@ -35,7 +35,7 @@
                 <version>2.21.1</version>
             </dependency>
         </dependencies>
-    </dependencyManagement>
+    </dependencyManagement> -->
     <dependencies>
         <!-- ===== Spring Boot Starters ===== -->
         <dependency>
