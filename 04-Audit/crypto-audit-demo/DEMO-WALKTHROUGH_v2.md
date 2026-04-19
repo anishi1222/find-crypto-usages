@@ -14,6 +14,35 @@
 > Exact negotiated named-group guidance updated: built-in JFR alone is not enough in
 > this JDK build; use JSSE handshake debug when you need handshake-level proof of the
 > negotiated group.
+>
+> **Sync-up with current `scripts/crypto-audit.sh`:**
+> - Static audit is internally **three phases** (Dependency → Source/Config → Keystore),
+>   so `--phase-pause` stops **three times** (before Phase 2, before Phase 3, before Summary).
+> - New options: `--phase-pause-seconds N` for timed pauses, `-h/--help` for usage.
+> - Build systems: **Maven and Gradle** are both auto-detected.
+> - Frameworks: dependency, source, and config patterns cover **Spring Boot, Quarkus,
+>   Micronaut, Jakarta EE, and plain Java**.
+> - Phase 2 adds **Algorithm OIDs** (e.g. RSA / ML-DSA OID families) and **timing
+>   side-channel** heuristics on top of JCE calls, algorithm strings, and framework patterns.
+> - Phase 3 scans both binary keystores (`*.jks`, `*.p12`, `*.pkcs12`, `*.keystore`)
+>   **and** PEM certificate/key files (`*.pem`, `*.crt`, `*.cer`, `*.key`, `*.cert`).
+> - The script's final summary now lists **five recommended actions**, including
+>   JDK 27 hybrid TLS and a crypto-agility abstraction layer.
+>
+> **Verified totals (re-measured on the live demo project):**
+> - Static audit (`./scripts/crypto-audit.sh .`): **22 crypto usage points** —
+>   🔴 5 Quantum-Vulnerable, 🟡 14 Attention, 🟢 3 Low-Risk. Verified by re-running the
+>   script against the trimmed-down demo project (X.509 validation service intentionally
+>   excluded).
+> - JCE capability (`java scripts/CryptoAuditJce.java`): 365 registered algorithm
+>   services, 335 crypto-relevant — 24 PQ-ready, 95 vulnerable, 87 attention, 129 low-risk.
+> - TLS capability (`java ../ciphercheck-demo/CipherSuiteCheck.java`): 31 cipher suites
+>   (3 TLS 1.3, 27 quantum-vulnerable), 11 named groups (1 PQ — `X25519MLKEM768`, 10 vulnerable).
+> - **Deck sync note:** the deck quotes **22 / 5 / 14 / 3** and that matches the live
+>   `crypto-audit.sh` output against the current demo project. If the X.509 validation
+>   service is ever re-introduced, three additional 🟡 ATTENTION findings will appear
+>   (`SSLContext.getInstance`, `CertificateFactory.getInstance`, `TrustManagerFactory.getInstance`)
+>   and the totals would shift to **25 / 5 / 17 / 3** — re-align the deck in that case.
 
 ---
 
@@ -97,9 +126,12 @@ cd 04-Audit/crypto-audit-demo && mvn clean package -q && timeout 20s java -jar t
 Prepare these commands in a note so you can paste quickly during the talk:
 
 ```bash
-# 1) Full static audit (Layers 1–3)
+# 1) Full static audit (Layers 1–3 — internally 3 script phases, so 3 Enter presses)
 cd 04-Audit/crypto-audit-demo
 ./scripts/crypto-audit.sh --phase-pause .
+
+# 1-alt) Same audit with timed pauses instead of waiting for Enter
+# ./scripts/crypto-audit.sh --phase-pause-seconds 3 .
 
 # 2) Layer 4a — JCE capability inventory
 java scripts/CryptoAuditJce.java 2>&1 | tail -20
@@ -195,7 +227,10 @@ cd 04-Audit/crypto-audit-demo
 ./scripts/crypto-audit.sh --phase-pause .
 ```
 
-The script begins running. Layer 1 (dependency scan) output appears first.
+The script auto-detects the build system (Maven `pom.xml` or Gradle `build.gradle`/`build.gradle.kts`)
+and runs **three phases** internally — Dependency, Source/Config, Keystore. With `--phase-pause`,
+it stops **three times** (before Phase 2, before Phase 3, before the Summary). Layer 1
+(`PHASE 1 — DEPENDENCY SCAN`) output appears first.
 
 ### Talk Track (as Layer 1 output scrolls)
 
@@ -209,6 +244,9 @@ The script begins running. Layer 1 (dependency scan) output appears first.
 > Notice PostgreSQL. Your database driver does TLS on every connection.
 > Zero crypto code in your app — but it is there.
 >
+> The same dependency rules also catch Quarkus SmallRye JWT, Micronaut Security JWT, MicroProfile JWT,
+> and Auth0 / jjwt — so this layer works the same way on Quarkus, Micronaut and Jakarta EE projects.
+>
 > Seven crypto libraries found. And we have not even looked at the source code yet."
 
 ---
@@ -219,7 +257,11 @@ The script begins running. Layer 1 (dependency scan) output appears first.
 
 > **Question this layer answers:** *Where does the application ask for crypto, even through framework APIs?*
 
-After you press Enter, Layer 2 output begins.
+After you press Enter the **first** time, `PHASE 2 — SOURCE CODE SCAN` begins. This single phase
+emits five sub-sections in sequence: JCE / JCA API calls, algorithm name strings, algorithm OIDs,
+configuration & properties, timing side-channel patterns, and framework / library API patterns.
+The "Configuration & Properties" sub-section in particular is what makes server-side TLS visible
+without any Java code.
 
 ### Talk Track
 
@@ -231,21 +273,36 @@ After you press Enter, Layer 2 output begins.
 > NimbusJwtDecoder verifies signatures.
 > Both are quantum-vulnerable — but grep alone will miss them in your code.
 >
+> The same kind of pattern catches Quarkus SmallRye JWT, Micronaut JWT, Vert.x JWTAuth,
+> and Bouncy Castle's CMS and ContentSigner — so the audit works on any JVM stack, not just Spring.
+>
+> (point to OID lines) The audit also matches algorithm OIDs — RSA, ECDSA, EdDSA — and the new
+> ML-DSA OID family from FIPS 204. That catches algorithms that hide as numbers in config or in
+> wire formats, not as English words.
+>
+> (point to timing side-channel hits) And there is a heuristic for timing side-channels —
+> equality on token-like or secret-like names. That is the kind of finding you fix with
+> `MessageDigest.isEqual` rather than `String.equals`.
+>
 > (point to config section) And even here we already see server.ssl in your properties file.
-> We will come back to that in Layer three.
+> Spring Boot, Quarkus and Micronaut all have their own keys for this — `server.ssl.*`,
+> `quarkus.http.ssl.*`, `micronaut.ssl.*` — and the audit covers all of them.
 > Crypto can be turned on with zero Java code.
 >
 > (point to keystore refs) Keystore references in configuration — more touchpoints."
 
 ### Key Output to Highlight
 
-Point to these specific lines as they appear:
+Point to these specific lines as they appear (all under `PHASE 2 — SOURCE CODE SCAN`):
 
-- NimbusJwtEncoder / NimbusJwtDecoder (red, quantum-vulnerable)
-- JcaContentSignerBuilder with SHA256withRSA (red)
-- server.ssl.* TLS configuration (yellow)
+- NimbusJwtEncoder / NimbusJwtDecoder (red, quantum-vulnerable) — framework API patterns
+- JcaContentSignerBuilder with SHA256withRSA (red) — Bouncy Castle ContentSigner
+- RSA / ECDSA / DSA algorithm name strings (red) — algorithm name strings
+- RSA / ECDSA OID families and ML-DSA OID family (red / green) — algorithm OIDs
+- `server.ssl.*` (Spring Boot) / `quarkus.http.ssl.*` / `micronaut.ssl.*` TLS configuration (yellow)
 - Datasource with SSL params (yellow)
-- Keystore/truststore references (yellow)
+- Keystore / truststore references in configuration (yellow)
+- Timing side-channel heuristic on token / secret / password comparisons (yellow, if present)
 
 ---
 
@@ -255,14 +312,26 @@ Point to these specific lines as they appear:
 
 > **Question this layer answers:** *What turns crypto on with no Java code at all?*
 
-Layer 3 output appears.
+Mapping to script phases: the **configuration** half of Layer 3 is already on screen as the
+"Configuration & Properties" sub-section of `PHASE 2`. After you press Enter the **second** time,
+`PHASE 3 — KEYSTORE & CERTIFICATE AUDIT` runs and prints the keystore/PEM half: binary keystores
+(`*.jks`, `*.p12`, `*.pkcs12`, `*.keystore`) and PEM files (`*.pem`, `*.crt`, `*.cer`, `*.key`,
+`*.cert`). Phase 3 uses `keytool` for binary stores and `openssl` for PEMs, so each entry shows
+its key type, key size, and signature algorithm.
 
 ### Talk Track
 
 > "Layer three — configuration and keystore.
 >
-> The PKCS12 keystore holds an RSA-2048 server key and an RSA-signed certificate chain.
-> That material authenticates HTTPS, and it also supports JWT signing and licence verification.
+> Configuration was already on screen at the end of Layer two — that was the `server.ssl`
+> block in `application.properties`. That alone turns HTTPS on with zero Java code.
+>
+> Now the keystore. The PKCS12 keystore holds an RSA-2048 server key and an RSA-signed
+> certificate chain. That material authenticates HTTPS, and it also supports JWT signing
+> and licence verification.
+>
+> The audit also walks any PEM certificate or key files in the project — the same red marker
+> if it finds RSA, ECDSA, DSA, or EC.
 >
 > So this layer tells us that certificate and signature material still needs migration.
 > But it does not tell us which TLS named group the JVM negotiated at runtime.
@@ -323,6 +392,9 @@ java scripts/CryptoAuditJce.java 2>&1 | tail -20
 - Post-Quantum available: **24**
 - Quantum-Vulnerable: **95**
 
+> Numbers verified by running `java scripts/CryptoAuditJce.java` on JDK 27 (early access).
+> Re-run on stage to confirm — values can shift by one or two on different JDK builds and provider lists.
+
 ---
 
 ### 6b — Capability: TLS Cipher Suites and Named Groups
@@ -345,8 +417,9 @@ java CipherSuiteCheck.java
 
 ### Talk Track (after output)
 
-> "This shows the named groups the platform can negotiate — including X25519MLKEM768,
-> the hybrid post-quantum group from JEP 527.
+> "Thirty-one cipher suites are supported, three of them TLS 1.3.
+> Eleven named groups are available, and one of them is post-quantum:
+> X25519MLKEM768, the hybrid group from JEP 527.
 >
 > That is the capability view.
 > It does not prove what one specific handshake negotiated.
@@ -774,6 +847,18 @@ Skip directly to the summary:
 
 > "Due to time, let me jump to the results.
 > We found 22 crypto usage points. Most were invisible. Let me explain the prioritisation."
+
+### If `--phase-pause` is silently skipped
+
+The script downgrades `--phase-pause` to a no-op (with a one-line warning) when no
+interactive TTY is available — for example when stdout is piped or run inside a
+non-TTY recorder. If you need pauses in that situation, switch to:
+
+```bash
+./scripts/crypto-audit.sh --phase-pause-seconds 3 .
+```
+
+`./scripts/crypto-audit.sh -h` prints the full option list at any time.
 
 ---
 

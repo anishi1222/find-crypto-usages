@@ -4,7 +4,7 @@
 [1;36m============================================================[0m
 
   [1mTarget project:[0m /home/logico_jp/find-crypto-usages/04-Audit/crypto-audit-demo
-  [1mDate:[0m           2026-04-16 13:11:22
+  [1mDate:[0m           2026-04-19 16:08:13
   [1mJava version:[0m   openjdk version "27-ea" 2026-09-15
 
 
@@ -17,7 +17,7 @@
 
     [1;33m🟡[0m PostgreSQL JDBC — internal TLS for DB connections: org.postgresql:postgresql:jar:42.7.10:runtime
     [1;32m🟢[0m Apache Commons Codec — hashing/encoding utilities: commons-codec:commons-codec:jar:1.18.0:compile
-    [1;33m🟡[0m Bouncy Castle — general-purpose crypto provider: org.bouncycastle:bcprov-jdk18on:jar:1.83:compile
+    [1;33m🟡[0m Bouncy Castle — general-purpose crypto provider: org.bouncycastle:bcprov-jdk18on:jar:1.84:compile
     [1;31m🔴[0m Nimbus JOSE+JWT — JWT/JWE crypto: com.nimbusds:nimbus-jose-jwt:jar:9.37.4:compile
     [1;33m🟡[0m Google Tink — crypto abstraction library: com.google.crypto.tink:tink:jar:1.9.0:compile
     [1;33m🟡[0m Spring Security — contains crypto primitives: org.springframework.security:spring-security-config:jar:6.5.9:compile
@@ -180,7 +180,7 @@
 
   [1;33m🟡 ATTENTION (review recommended): 14[0m
      - PostgreSQL JDBC — internal TLS for DB connections: org.postgresql:postgresql:jar:42.7.10:runtime
-     - Bouncy Castle — general-purpose crypto provider: org.bouncycastle:bcprov-jdk18on:jar:1.83:compile
+     - Bouncy Castle — general-purpose crypto provider: org.bouncycastle:bcprov-jdk18on:jar:1.84:compile
      - Google Tink — crypto abstraction library: com.google.crypto.tink:tink:jar:1.9.0:compile
      - Spring Security — contains crypto primitives: org.springframework.security:spring-security-config:jar:6.5.9:compile
      - JDK built-in JCA/JCE — review algorithm choices in source code
