@@ -1,0 +1,71 @@
+================================================================================
+HYBRID TLS Spring Boot - Flight Recording Generation Summary
+================================================================================
+
+Generated Files Location:
+/Users/logico_jp/sources/repos/find-crypto-usages/03-HybridTLS-SpringBoot/demo-output/
+
+File Details:
+1. pqc-hybrid-tls-basic.jfr (1.4M)
+   - Duration: 60 seconds
+   - Workload: Basic API calls (hello, tls endpoint, health)
+   - Requests: ~60 (20 loops × 3 endpoints)
+   - Cipher Suite: TLS 1.3 with default named groups
+   - Purpose: Capture standard hybrid TLS handshakes
+
+2. pqc-hybrid-tls-rich.jfr (1.3M)
+   - Duration: 90 seconds
+   - Workload: Rich multi-endpoint traffic (50 loops × 3 endpoints)
+   - Requests: ~150
+   - Cipher Suite: TLS 1.3 with default named groups
+   - Purpose: Capture high-volume hybrid TLS sessions
+
+3. pqc-hybrid-tls-probe.jfr (818K)
+   - Duration: 60 seconds
+   - Workload: HybridTlsClient probe connections
+   - Requests: 35 × HybridTlsClient with --named-group X25519MLKEM768
+   - Cipher Suite: X25519MLKEM768 (post-quantum hybrid)
+   - Purpose: Capture explicit X25519MLKEM768 named group usage
+
+Security Events Enabled (All Files):
+- jdk.TLSHandshake: TLS protocol, cipher suite, session events
+- jdk.X509Validation: Certificate validation events
+- jdk.X509Certificate: Certificate operations
+- jdk.SecurityPropertyModification: Security property changes
+- jdk.Deserialization: Deserialization operations
+
+Application Context:
+- Framework: Spring Boot 3.5.14 with embedded Tomcat
+- JDK: Java 27-ea
+- HTTPS Port: 8443
+- Keystore: PKCS12 (EC secp256r1 certificate)
+- TLS Profile: tls (as per application-tls.yml)
+
+API Endpoints Tested:
+- GET /api/hello?name=<value> - Simple greeting endpoint
+- GET /api/tls - TLS session diagnostics
+- GET /actuator/health - Health check endpoint
+
+Client Tools Used:
+- curl -sk (SSL/TLS handshake from curl/OpenSSL)
+- HybridTlsClient Java probe (X25519MLKEM768-specific)
+
+Key Technical Notes:
+1. Named groups in JFR: The built-in jdk.TLSHandshake event does NOT expose
+   the negotiated named group in this JDK 27-ea build. The pqc-hybrid-tls-probe.jfr
+   was specifically generated using the HybridTlsClient with explicit
+   --named-group X25519MLKEM768 to demonstrate post-quantum hybrid TLS usage.
+
+2. Hybrid TLS Verification: JEP 527 specifies that JDK 27 JSSE clients prefer
+   X25519MLKEM768 as the first named group by default. The probe recording
+   demonstrates this capability being used explicitly.
+
+3. Traffic Generation Pattern: Each workload type (basic, rich, probe) was
+   executed with unique parameters to capture different usage patterns and
+   traffic volumes.
+
+Recording Configuration:
+- Recording Name: HYBRID-TLS, HYBRID-TLS-RICH, HYBRID-TLS-PROBE
+- Settings: profile (default flight recording settings)
+- Dump on Exit: true (automatic file write on completion)
+- Event Enablement: Manual via jcmd command-line overrides
