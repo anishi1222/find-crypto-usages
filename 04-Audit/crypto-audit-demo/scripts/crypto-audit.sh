@@ -709,9 +709,9 @@ if [ -n "$DEP_TREE_FILE" ] && [ -s "$DEP_TREE_FILE" ]; then
         match=$(grep -i "$pattern" "$DEP_TREE_FILE" || true)
         if [ -n "$match" ]; then
             case "$risk" in
-                VULN) finding_vuln "${description}: $(echo "$match" | head -1 | sed 's/^[| +-\\]*//')" ;;
-                ATTN) finding_attn "${description}: $(echo "$match" | head -1 | sed 's/^[| +-\\]*//')" ;;
-                LOW)  finding_low  "${description}: $(echo "$match" | head -1 | sed 's/^[| +-\\]*//')" ;;
+                VULN) finding_vuln "${description}: $(echo "$match" | head -1 | sed 's/^[-| +\\]*//')" ;;
+                ATTN) finding_attn "${description}: $(echo "$match" | head -1 | sed 's/^[-| +\\]*//')" ;;
+                LOW)  finding_low  "${description}: $(echo "$match" | head -1 | sed 's/^[-| +\\]*//')" ;;
             esac
         fi
     done
