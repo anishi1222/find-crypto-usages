@@ -188,7 +188,10 @@ public final class HybridTlsClient {
     ) throws IOException, GeneralSecurityException {
         TrustManager[] trustManagers;
         if (options.trustAll()) {
-            trustManagers = insecureTrustManagers();
+            throw new GeneralSecurityException(
+                    "Insecure configuration is not allowed: trustAll disables TLS certificate validation. " +
+                    "Configure a trust store or use the default trust managers."
+            );
         } else if (options.trustStorePath() != null) {
             trustManagers = loadTrustManagers(
                     options.trustStorePath(),
@@ -311,41 +314,6 @@ public final class HybridTlsClient {
         } catch (SSLPeerUnverifiedException exception) {
             return "Unavailable";
         }
-    }
-
-    private static TrustManager[] insecureTrustManagers() {
-        return new TrustManager[]{
-                new X509ExtendedTrustManager() {
-                    @Override
-                    public void checkClientTrusted(X509Certificate[] chain, String authType) {
-                    }
-
-                    @Override
-                    public void checkServerTrusted(X509Certificate[] chain, String authType) {
-                    }
-
-                    @Override
-                    public void checkClientTrusted(X509Certificate[] chain, String authType, Socket socket) {
-                    }
-
-                    @Override
-                    public void checkServerTrusted(X509Certificate[] chain, String authType, Socket socket) {
-                    }
-
-                    @Override
-                    public void checkClientTrusted(X509Certificate[] chain, String authType, SSLEngine engine) {
-                    }
-
-                    @Override
-                    public void checkServerTrusted(X509Certificate[] chain, String authType, SSLEngine engine) {
-                    }
-
-                    @Override
-                    public X509Certificate[] getAcceptedIssuers() {
-                        return new X509Certificate[0];
-                    }
-                }
-        };
     }
 
     private static void printReport(ClientOptions options, ResponseDetails response) {
