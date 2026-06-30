@@ -10,7 +10,7 @@ JDK APIs, without Spring or other application frameworks.
 
 ## Prerequisites
 
-- JDK 27
+- JDK 27 or later
 - `keytool` (included with the JDK)
 - `curl` (optional, for quick connectivity checks)
 - `rg` (optional, for searching TLS handshake debug logs)

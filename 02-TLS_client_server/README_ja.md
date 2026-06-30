@@ -8,7 +8,7 @@ HTTPS/TLS 1.3 の server/client を動かす最小デモです。
 
 ## 事前に必要なもの
 
-- JDK 27
+- JDK 27以上
 - `keytool`（JDK に同梱）
 - `curl`（疎通確認用、任意）
 - `rg`（TLS handshake debug log の検索用、任意）

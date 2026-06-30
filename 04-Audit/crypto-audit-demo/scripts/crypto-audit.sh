@@ -959,7 +959,7 @@ fi
 section "PEM Certificate & Key Files"
 
 PEM_FILES=$(find "$PROJECT_DIR" -type f -not -path '*/target/*' -not -path '*/.git/*' -not -path '*/node_modules/*' \( \
-    -name '*.pem' -o -name '*.crt' -o -name '*.cer' -o -name '*.key' -o -name '*.cert' \
+    -iname '*.pem' -o -iname '*.crt' -o -iname '*.cer' -o -iname '*.key' -o -iname '*.cert' \
     \) 2>/dev/null || true)
 
 if [ -n "$PEM_FILES" ]; then
@@ -981,12 +981,27 @@ if [ -n "$PEM_FILES" ]; then
             fi
         else
             # Might be a private key file
-            key_type=$(openssl pkey -in "$pf" -noout -text 2>/dev/null | head -3 || true)
+            key_type=$(openssl pkey -in "$pf" -passin pass: -noout -text 2>/dev/null || true)
             if [ -n "$key_type" ]; then
                 echo -e "    ${BOLD}Private Key: ${rel}${RESET}"
-                echo -e "      ${DIM}${key_type}${RESET}"
-                if echo "$key_type" | grep -qiE 'rsa|ec|dsa'; then
-                    finding_vuln "PEM ${rel}: quantum-vulnerable private key"
+                echo "$key_type" | head -3 | while IFS= read -r line; do
+                    echo -e "      ${DIM}${line}${RESET}"
+                done
+
+                # openssl pkey output differs across OpenSSL/LibreSSL (macOS),
+                # so detect key type via parser probes instead of text heuristics.
+                key_algo=""
+                if openssl rsa -in "$pf" -passin pass: -noout >/dev/null 2>&1; then
+                    key_algo="RSA"
+                elif openssl ec -in "$pf" -passin pass: -noout >/dev/null 2>&1; then
+                    key_algo="EC"
+                elif openssl dsa -in "$pf" -passin pass: -noout >/dev/null 2>&1; then
+                    key_algo="DSA"
+                fi
+
+                if [ -n "$key_algo" ]; then
+                    echo -e "      ${DIM}Algorithm: ${key_algo}${RESET}"
+                    finding_vuln "PEM ${rel}: quantum-vulnerable private key (${key_algo})"
                 fi
             else
                 echo -e "    ${DIM}${rel} (could not parse — may be encrypted or non-standard)${RESET}"
