@@ -1,6 +1,6 @@
-# Java 27 Hybrid TLS Spring Boot Demo
+# Java 27 Hybrid TLS Spring Boot 4.1 Demo
 
-Simple Spring Boot REST API for demonstrating **Hybrid TLS over TLS 1.3** on **Java 27**.
+Simple Spring Boot 4.1.0 REST API for demonstrating **Hybrid TLS over TLS 1.3** on **Java 27**.
 
 This app keeps the application layer intentionally small:
 

@@ -35,7 +35,7 @@ Security Events Enabled (All Files):
 - jdk.Deserialization: Deserialization operations
 
 Application Context:
-- Framework: Spring Boot 3.5.14 with embedded Tomcat
+- Framework: Spring Boot 4.1.0 with embedded Tomcat
 - JDK: Java 27-ea
 - HTTPS Port: 8443
 - Keystore: PKCS12 (EC secp256r1 certificate)
