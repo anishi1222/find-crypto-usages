@@ -1,14 +1,11 @@
-import java.util.Arrays;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLParameters;
 
-public final class PrintDefaultNamedGroups {
+public class PrintDefaultNamedGroups {
 
-  void main(String[] args) throws Exception {
-    IO.println("java.runtime.version = " + Runtime.version());
-    Arrays.stream(SSLContext.getDefault()
-        .getSupportedSSLParameters()
-        .getNamedGroups())
-        .forEach(IO::println);
-  }
+    void main() throws Exception {
+        System.out.println("java.runtime.version = " + Runtime.version());
+        for (String namedGroup : SSLContext.getDefault().getDefaultSSLParameters().getNamedGroups()) {
+            System.out.println(namedGroup);
+        }
+    }
 }
