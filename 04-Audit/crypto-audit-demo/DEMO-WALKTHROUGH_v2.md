@@ -1,4 +1,4 @@
-# Crypto Audit Demo — Presentation Walkthrough & Talk Script (v2)
+# Crypto Audit Demo — Spring Boot 4 Presentation Walkthrough & Talk Script (v2)
 
 > **Session:** _Quantum-Ready Java: A Practical Guide to Post-Quantum Cryptography Migration_
 >
@@ -14,6 +14,12 @@
 > Exact negotiated named-group guidance updated: built-in JFR alone is not enough in
 > this JDK build; use JSSE handshake debug when you need handshake-level proof of the
 > negotiated group.
+> Spring Boot refresh: the demo application now builds on **Spring Boot 4.1.0**.
+> Maven uses the Boot 4 MVC and OAuth2 resource-server starter names:
+> `spring-boot-starter-webmvc` and
+> `spring-boot-starter-security-oauth2-resource-server`.
+> Demo-profile auto-configuration exclusions were updated to Boot 4's modular
+> package names.
 >
 > **Sync-up with current `scripts/crypto-audit.sh`:**
 > - Static audit is internally **three phases** (Dependency → Source/Config → Keystore),
@@ -32,8 +38,8 @@
 > **Verified totals (re-measured on the live demo project):**
 > - Static audit (`./scripts/crypto-audit.sh .`): **22 crypto usage points** —
 >   🔴 5 Quantum-Vulnerable, 🟡 14 Attention, 🟢 3 Low-Risk. Verified by re-running the
->   script against the trimmed-down demo project (X.509 validation service intentionally
->   excluded).
+>   script against the Spring Boot 4.1.0 demo project (X.509 validation service
+>   intentionally excluded).
 > - JCE capability (`java scripts/CryptoAuditJce.java`): 365 registered algorithm
 >   services, 335 crypto-relevant — 24 PQ-ready, 95 vulnerable, 87 attention, 129 low-risk.
 > - TLS capability (`java ../ciphercheck-demo/CipherSuiteCheck.java`): 31 cipher suites
@@ -78,6 +84,10 @@ mvn -version
 # Navigate to demo directory
 cd 04-Audit/crypto-audit-demo
 
+# Verify Spring Boot 4 dependency coordinates
+mvn -q help:evaluate -Dexpression=project.parent.version -DforceStdout
+mvn dependency:tree -Dincludes=org.springframework.boot | rg 'spring-boot-starter-(webmvc|security-oauth2-resource-server):jar:4\.1'
+
 # Pre-download dependencies (offline safety)
 mvn dependency:resolve -q
 
@@ -90,7 +100,7 @@ java scripts/CryptoAuditJce.java 2>&1 | tail -5
 java ../ciphercheck-demo/CipherSuiteCheck.java 2>&1 | tail -5
 ```
 
-### Demo Profile Startup Readiness (Must Do)
+### Spring Boot 4 Demo Profile Startup Readiness (Must Do)
 
 Before going on stage, verify that the app can start in `demo` profile with HTTPS.
 
@@ -109,7 +119,9 @@ timeout 20s java -jar target/crypto-audit-demo-0.0.1-SNAPSHOT.jar \
 
 Expected success markers:
 
+- `:: Spring Boot ::                (v4.1.0)`
 - `The following 1 profile is active: "demo"`
+- `Starting Servlet engine: [Apache Tomcat/11.x]`
 - `Tomcat started on port 8443 (https)`
 - `Started PqcDemoApplication`
 
@@ -144,7 +156,7 @@ java CipherSuiteCheck.java
 cd 04-Audit/crypto-audit-demo
 java scripts/CryptoAuditRuntime.java --file demo-output/pqc-live.jfr
 
-# 5) Start app in demo profile (Terminal A — for live JFR or custom-event capture, optional)
+# 5) Start Spring Boot 4 app in demo profile (Terminal A — for live JFR or custom-event capture, optional)
 java --add-opens java.base/sun.security.ssl=ALL-UNNAMED \
 	-jar target/crypto-audit-demo-0.0.1-SNAPSHOT.jar \
 	--spring.profiles.active=demo \
@@ -191,7 +203,7 @@ java scripts/CryptoAuditRuntime.java --file demo-output/pqc-live.jfr 2>&1 | tail
 
 > "Let me show you what I mean with a real example.
 >
-> Here is a Spring Boot microservice. REST API, JWT authentication, PostgreSQL database.
+> Here is a Spring Boot 4 microservice. REST API, JWT authentication, PostgreSQL database.
 > You probably have dozens of services like this in your organisation."
 
 ### Terminal
@@ -236,10 +248,10 @@ it stops **three times** (before Phase 2, before Phase 3, before the Summary). L
 
 > "Layer one — dependencies.
 >
-> (point to red marker) Nimbus JOSE+JWT — handles JWT signing inside Spring Security.
+> (point to red marker) Nimbus JOSE+JWT — handles JWT signing inside Spring Security 7.
 > Quantum-vulnerable.
 >
-> (point to yellow markers) Bouncy Castle, Tink, Spring Security, PostgreSQL JDBC — all need review.
+> (point to yellow markers) Bouncy Castle, Tink, Spring Security 7, PostgreSQL JDBC — all need review.
 >
 > Notice PostgreSQL. Your database driver does TLS on every connection.
 > Zero crypto code in your app — but it is there.
@@ -584,7 +596,7 @@ named group. For that, use Section 6e: JSSE handshake debug.
 
 Use two or three terminals:
 
-- Terminal A: run the Spring Boot app (demo profile)
+- Terminal A: run the Spring Boot 4 app (demo profile)
 - Terminal B: run `CryptoAuditRuntime.java --pid ...`
 - Terminal C (optional): send HTTPS requests while the runtime stream is active
 
@@ -600,6 +612,7 @@ java --add-opens java.base/sun.security.ssl=ALL-UNNAMED \
 
 Wait until you see:
 
+- `:: Spring Boot ::                (v4.1.0)`
 - `Tomcat started on port 8443 (https)`
 - `Started PqcDemoApplication`
 
@@ -747,10 +760,26 @@ rg -i 'key_share|named group|x25519mlkem768|x25519|secp256r1' /tmp/jsse-handshak
 ### If Maven fails
 
 ```bash
-# Show pre-captured output
 cd 04-Audit/crypto-audit-demo
+
+# Confirm Maven is using the stage JDK.
+# The project targets Java 27 so CipherSuiteCheck can show JDK 27 hybrid TLS named groups.
+mvn -version
+java -version
+
+# Show pre-captured output
 cat demo-output/crypto-audit-output.txt
 ```
+
+For a local smoke test on a workstation that only has a lower JDK, you can temporarily
+override the Maven release level, for example:
+
+```bash
+mvn -Djava.version=25 clean package -q
+java -jar target/crypto-audit-demo-0.0.1-SNAPSHOT.jar --spring.profiles.active=demo
+```
+
+Do not use that override for the stage path if you need the JDK 27 hybrid TLS named-group output.
 
 ### If JCE script fails
 
