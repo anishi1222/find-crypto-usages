@@ -4,8 +4,8 @@
 [1;36m============================================================[0m
 
   [1mTarget project:[0m /Users/logico_jp/sources/repos/find-crypto-usages/04-Audit/crypto-audit-demo
-  [1mDate:[0m           2026-07-21 19:52:33
-  [1mJava version:[0m   openjdk version "28-ea" 2027-03-23
+  [1mDate:[0m           2026-06-30 14:16:25
+  [1mJava version:[0m   openjdk version "27-ea" 2026-09-15
 
 
 [1;36m============================================================[0m
@@ -40,7 +40,7 @@
       [2m[comment] src/main/java/com/example/pqcdemo/service/JwtService.java:23: *       ({@code Signature.getInstance("SHA256withRSA")}) is buried in the[0m
       [2m[comment] src/main/java/com/example/pqcdemo/service/LicenseService.java:44: *       {@code Signature.getInstance(...)} calls</li>[0m
     [1;33m🟡[0m KeyStore.getInstance — keystore access
-      [2msrc/main/java/com/example/pqcdemo/config/SecurityConfig.java:88:            KeyStore keyStore = KeyStore.getInstance("PKCS12");[0m
+      [2msrc/main/java/com/example/pqcdemo/config/SecurityConfig.java:89:            KeyStore keyStore = KeyStore.getInstance("PKCS12");[0m
       [2msrc/main/java/com/example/pqcdemo/service/LicenseService.java:81:        KeyStore keyStore = KeyStore.getInstance("PKCS12");[0m
 
   [1;35m────────────────────────────────────────────────[0m
@@ -94,15 +94,15 @@
   [1mFramework / Library API Patterns (require library knowledge)[0m
   [1;35m────────────────────────────────────────────────[0m
     [1;31m🔴[0m Spring Security Nimbus JWT — RSA/ECDSA JWT signing (algorithm hidden in decoder/encoder config)
-      [2msrc/main/java/com/example/pqcdemo/config/SecurityConfig.java:22:import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;[0m
-      [2msrc/main/java/com/example/pqcdemo/config/SecurityConfig.java:23:import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;[0m
-      [2msrc/main/java/com/example/pqcdemo/config/SecurityConfig.java:142:        NimbusJwtDecoder decoder = NimbusJwtDecoder.withPublicKey(publicKey).build();[0m
-      [2msrc/main/java/com/example/pqcdemo/config/SecurityConfig.java:156:        return new NimbusJwtEncoder(new ImmutableJWKSet<>(new JWKSet(rsaKey)));[0m
+      [2msrc/main/java/com/example/pqcdemo/config/SecurityConfig.java:23:import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;[0m
+      [2msrc/main/java/com/example/pqcdemo/config/SecurityConfig.java:24:import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;[0m
+      [2msrc/main/java/com/example/pqcdemo/config/SecurityConfig.java:144:        NimbusJwtDecoder decoder = NimbusJwtDecoder.withPublicKey(publicKey).build();[0m
+      [2msrc/main/java/com/example/pqcdemo/config/SecurityConfig.java:158:        return new NimbusJwtEncoder(new ImmutableJWKSet<>(new JWKSet(rsaKey)));[0m
       [2msrc/main/java/com/example/pqcdemo/controller/ApiController.java:159:                "note", "Signed via Spring Security NimbusJwtEncoder"[0m
     [2mℹ  Spring Security Nimbus JWT — RSA/ECDSA JWT signing (algorithm hidden in decoder/encoder config): comment-only references shown below are not counted as findings[0m
-      [2m[comment] src/main/java/com/example/pqcdemo/config/SecurityConfig.java:38: *   <li><b>🔴 JWT signature verification</b> — Spring Security's {@code NimbusJwtDecoder}[0m
-      [2m[comment] src/main/java/com/example/pqcdemo/config/SecurityConfig.java:129:            // inside NimbusJwtDecoder (Nimbus JOSE+JWT), invisible to application code[0m
-      [2m[comment] src/main/java/com/example/pqcdemo/config/SecurityConfig.java:138:     * CRYPTO AUDIT: NimbusJwtDecoder — verifies JWT signatures using RSA.[0m
+      [2m[comment] src/main/java/com/example/pqcdemo/config/SecurityConfig.java:39: *   <li><b>🔴 JWT signature verification</b> — Spring Security's {@code NimbusJwtDecoder}[0m
+      [2m[comment] src/main/java/com/example/pqcdemo/config/SecurityConfig.java:131:            // inside NimbusJwtDecoder (Nimbus JOSE+JWT), invisible to application code[0m
+      [2m[comment] src/main/java/com/example/pqcdemo/config/SecurityConfig.java:140:     * CRYPTO AUDIT: NimbusJwtDecoder — verifies JWT signatures using RSA.[0m
       [2m[comment] src/main/java/com/example/pqcdemo/controller/ApiController.java:58:     * {@code NimbusJwtDecoder} — RSA signature verification happens[0m
       [2m[comment] src/main/java/com/example/pqcdemo/service/JwtService.java:22: *       Spring Security's {@code NimbusJwtEncoder}. The crypto call[0m
       [2m[comment] src/main/java/com/example/pqcdemo/service/JwtService.java:48:     * <p>The actual RSA signing happens inside {@code NimbusJwtEncoder},[0m
@@ -204,7 +204,7 @@
     1. Migrate [1;32msignature workflows[0m (JWT, certificates, CMS) from RSA/ECDSA/DSA to [1;32mML-DSA / SLH-DSA[0m when ecosystem support is ready
     2. Migrate [1;32mkey-establishment workflows[0m (ECDH, DH, TLS named groups, RSA wrapping) to [1;32mML-KEM / hybrid TLS[0m
     3. Keep [1;32mbulk symmetric crypto[0m (AES, ChaCha, HMAC) but review key sizes and crypto-agility boundaries
-    4. Upgrade to [1;32mJDK 28[0m for native hybrid TLS named groups (JEP 527)
+    4. Upgrade to [1;32mJDK 27[0m for native hybrid TLS named groups (JEP 527)
     5. Add a [1;32mcrypto-agility abstraction layer[0m so signatures, KEM, and TLS settings can evolve independently
   [1;36m────────────────────────────────────────────────[0m
 

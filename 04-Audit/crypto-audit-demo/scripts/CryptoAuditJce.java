@@ -219,7 +219,7 @@ public class CryptoAuditJce {
             System.out.printf("    %s⚠  No PQC algorithms found. Upgrade to JDK 24+ for ML-KEM/ML-DSA.%s%n",
                     YELLOW, RESET);
         }
-        System.out.printf("    → Upgrade to JDK 28 for native hybrid TLS named-group support (JEP 527)%n");
+        System.out.printf("    → Upgrade to JDK 27 for native hybrid TLS named-group support (JEP 527)%n");
         System.out.printf("    → Use java ../ciphercheck-demo/CipherSuiteCheck.java to inspect supported TLS named groups%n");
         System.out.printf("    → Use java scripts/CryptoAuditRuntime.java to compare capability with observed runtime behaviour%n");
         System.out.printf("    → Build crypto-agility layer to ease future algorithm transitions%n");

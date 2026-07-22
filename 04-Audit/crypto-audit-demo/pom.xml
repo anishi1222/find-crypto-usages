@@ -23,7 +23,7 @@
     </description>
 
     <properties>
-        <java.version>28</java.version>
+        <java.version>27</java.version>
         <bouncycastle.version>1.84</bouncycastle.version>
     </properties>
     <!-- Override jackson-core to fix GHSA-72hv-8253-57qq (DoS via async parser) -->

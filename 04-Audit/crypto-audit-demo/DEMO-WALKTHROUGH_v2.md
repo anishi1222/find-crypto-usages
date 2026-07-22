@@ -33,17 +33,17 @@
 > - Phase 3 scans both binary keystores (`*.jks`, `*.p12`, `*.pkcs12`, `*.keystore`)
 >   **and** PEM certificate/key files (`*.pem`, `*.crt`, `*.cer`, `*.key`, `*.cert`).
 > - The script's final summary now lists **five recommended actions**, including
->   JDK 28 hybrid TLS and a crypto-agility abstraction layer.
+>   JDK 27 hybrid TLS and a crypto-agility abstraction layer.
 >
 > **Verified totals (re-measured on the live demo project):**
 > - Static audit (`./scripts/crypto-audit.sh .`): **22 crypto usage points** —
 >   🔴 5 Quantum-Vulnerable, 🟡 14 Attention, 🟢 3 Low-Risk. Verified by re-running the
 >   script against the Spring Boot 4.1.0 demo project (X.509 validation service
 >   intentionally excluded).
-> - JCE capability (`java scripts/CryptoAuditJce.java`): 367 registered algorithm
->   services, 337 crypto-relevant — 24 PQ-ready, 95 vulnerable, 89 attention, 129 low-risk.
+> - JCE capability (`java scripts/CryptoAuditJce.java`): 365 registered algorithm
+>   services, 335 crypto-relevant — 24 PQ-ready, 95 vulnerable, 87 attention, 129 low-risk.
 > - TLS capability (`java ../ciphercheck-demo/CipherSuiteCheck.java`): 31 cipher suites
->   (3 TLS 1.3, 27 quantum-vulnerable), 9 named groups (1 PQ — `X25519MLKEM768`, 8 vulnerable).
+>   (3 TLS 1.3, 27 quantum-vulnerable), 11 named groups (1 PQ — `X25519MLKEM768`, 10 vulnerable).
 > - **Deck sync note:** the deck quotes **22 / 5 / 14 / 3** and that matches the live
 >   `crypto-audit.sh` output against the current demo project. If the X.509 validation
 >   service is ever re-introduced, three additional 🟡 ATTENTION findings will appear
@@ -75,7 +75,7 @@
 ### Environment Checklist
 
 ```bash
-# Verify JDK 28 (Early Access) — required for hybrid TLS named groups
+# Verify JDK 27+ (recommended for hybrid TLS named groups)
 java -version
 
 # Verify Maven
@@ -404,7 +404,7 @@ java scripts/CryptoAuditJce.java 2>&1 | tail -20
 - Post-Quantum available: **24**
 - Quantum-Vulnerable: **95**
 
-> Numbers verified by running `java scripts/CryptoAuditJce.java` on JDK 28 (early access).
+> Numbers verified by running `java scripts/CryptoAuditJce.java` on JDK 27 (early access).
 > Re-run on stage to confirm — values can shift by one or two on different JDK builds and provider lists.
 
 ---
@@ -763,7 +763,7 @@ rg -i 'key_share|named group|x25519mlkem768|x25519|secp256r1' /tmp/jsse-handshak
 cd 04-Audit/crypto-audit-demo
 
 # Confirm Maven is using the stage JDK.
-# The project targets Java 28 so CipherSuiteCheck can show JDK 28 hybrid TLS named groups.
+# The project targets Java 27 so CipherSuiteCheck can show JDK 27 hybrid TLS named groups.
 mvn -version
 java -version
 
@@ -779,7 +779,7 @@ mvn -Djava.version=25 clean package -q
 java -jar target/crypto-audit-demo-0.0.1-SNAPSHOT.jar --spring.profiles.active=demo
 ```
 
-Do not use that override for the stage path if you need the JDK 28 hybrid TLS named-group output.
+Do not use that override for the stage path if you need the JDK 27 hybrid TLS named-group output.
 
 ### If JCE script fails
 
