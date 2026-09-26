@@ -6,7 +6,7 @@
 // curves) for each protocol version, and flags quantum-vulnerable entries.
 //
 // Usage:  java CipherSuiteCheck.java
-// Requires: JDK 17+
+// Requires: JDK 20+ (SSLParameters.getNamedGroups)
 // ============================================================================
 
 import javax.net.ssl.SSLContext;
@@ -178,7 +178,7 @@ public class CipherSuiteCheck {
                 }
             }
         } else {
-            System.out.printf("    %s(SSLParameters.getNamedGroups() not available — requires JDK 20+)%s%n",
+            System.out.printf("    %s(No named groups reported by the current JSSE provider/configuration)%s%n",
                     DIM, RESET);
             System.out.printf("    %sTip: use -Djdk.tls.namedGroups to configure named groups%s%n",
                     DIM, RESET);
@@ -202,7 +202,7 @@ public class CipherSuiteCheck {
             System.out.printf("    %s✅ Post-Quantum:%s         %s%d%s%n", GREEN, RESET, WHITE, pqcGroups, RESET);
             System.out.printf("    %s🔴 Quantum-Vulnerable:%s  %s%d%s%n", RED, RESET, WHITE, vulnGroups, RESET);
         } else {
-            System.out.printf("    %s(not available — JDK 20+ required)%s%n", DIM, RESET);
+            System.out.printf("    %s(named groups not reported by the current JSSE provider/configuration)%s%n", DIM, RESET);
         }
         System.out.println();
 
@@ -215,19 +215,20 @@ public class CipherSuiteCheck {
         if (hasTls13) {
             System.out.printf("    %s✅ TLS 1.3 is enabled — good.%s%n", GREEN, RESET);
         } else {
-            System.out.printf("    %s⚠  TLS 1.3 is NOT enabled — upgrade before adding PQC.%s%n", YELLOW, RESET);
+            System.out.printf("    %s⚠  TLS 1.3 is NOT enabled — check protocol support and settings.%s%n", YELLOW, RESET);
         }
 
         // Check PQC named groups
         if (pqcGroups > 0) {
-            System.out.printf("    %s✅ PQC named groups detected (X25519MLKEM768 etc.) — hybrid PQC TLS is available!%s%n",
+            System.out.printf("    %s✅ Recognized PQC named groups reported by the current JSSE configuration.%s%n",
                     GREEN, RESET);
         } else {
-            System.out.printf("    %s⚠  No PQC named groups found. Upgrade to JDK 27 for JEP 527 (hybrid PQC TLS).%s%n",
+            System.out.printf("    %s⚠  No recognized PQC named groups reported; verify JSSE provider support and configuration.%s%n",
                     YELLOW, RESET);
-            System.out.printf("    → Or add Bouncy Castle JSSE (BCJSSE) provider for PQC named groups on JDK 24-26.%n");
+            System.out.printf("    → If required groups are unavailable, configure or update the runtime/JSSE provider.%n");
         }
 
+        System.out.printf("    → Verify the negotiated group with the peer; local capability alone is not handshake evidence.%n");
         System.out.printf("    → Prefer TLS_AES_256_GCM_SHA384 and TLS_CHACHA20_POLY1305_SHA256 for TLS 1.3.%n");
         System.out.printf("    → Disable TLS 1.0/1.1 if still enabled.%n");
         System.out.printf("  %s────────────────────────────────────────────────%s%n", CYAN, RESET);

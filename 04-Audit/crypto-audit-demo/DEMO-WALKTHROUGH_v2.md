@@ -33,7 +33,9 @@
 > - Phase 3 scans both binary keystores (`*.jks`, `*.p12`, `*.pkcs12`, `*.keystore`)
 >   **and** PEM certificate/key files (`*.pem`, `*.crt`, `*.cer`, `*.key`, `*.cert`).
 > - The script's final summary now lists **five recommended actions**, including
->   JDK 27 hybrid TLS and a crypto-agility abstraction layer.
+>   checking PQC algorithms and hybrid TLS named groups in the target runtime/providers,
+>   and adding a crypto-agility abstraction layer. Recommendations are capability-based,
+>   not tied to a particular JDK release.
 >
 > **Verified totals (re-measured on the live demo project):**
 > - Static audit (`./scripts/crypto-audit.sh .`): **22 crypto usage points** —
@@ -75,7 +77,7 @@
 ### Environment Checklist
 
 ```bash
-# Verify JDK 27+ (recommended for hybrid TLS named groups)
+# Check the active JDK; runtime capabilities depend on providers and configuration
 java -version
 
 # Verify Maven
@@ -99,6 +101,27 @@ chmod +x scripts/crypto-audit.sh
 java scripts/CryptoAuditJce.java 2>&1 | tail -5
 java ../ciphercheck-demo/CipherSuiteCheck.java 2>&1 | tail -5
 ```
+
+The static audit does not gate on a JDK release. Dependency resolution and keystore
+inspection still depend on the target project's build tools and compatible Java
+tools. The demo application's compiler release in `pom.xml` is a separate build
+requirement; the standalone JCE and keystore Java audits require JDK 17 or later.
+The TLS helper needs JDK 20 or later because it calls
+`SSLParameters.getNamedGroups()`; that API minimum does not guarantee PQC support.
+Run capability checks with the application's JDK and equivalent provider/security
+configuration. Algorithm registration and supported TLS groups are inventories,
+not proof of application use or the group negotiated with a peer.
+
+Run the version-neutral guidance regression checks with Bash 4+ and JDK 20+:
+
+```bash
+bash scripts/test-crypto-audit.sh
+```
+
+The version-report cases are mocks, not a compatibility certification of those
+JDK builds; the Java helper checks run on the installed JDK.
+The TLS checks use the default JSSE provider and require
+`-Djdk.tls.namedGroups=x25519` to exercise the non-PQC recommendation path.
 
 ### Spring Boot 4 Demo Profile Startup Readiness (Must Do)
 
@@ -762,8 +785,8 @@ rg -i 'key_share|named group|x25519mlkem768|x25519|secp256r1' /tmp/jsse-handshak
 ```bash
 cd 04-Audit/crypto-audit-demo
 
-# Confirm Maven is using the stage JDK.
-# The project targets Java 27 so CipherSuiteCheck can show JDK 27 hybrid TLS named groups.
+# Confirm Maven's JDK satisfies the compiler release configured in pom.xml.
+# Check hybrid TLS capabilities separately with the stage runtime and providers.
 mvn -version
 java -version
 
@@ -779,7 +802,9 @@ mvn -Djava.version=25 clean package -q
 java -jar target/crypto-audit-demo-0.0.1-SNAPSHOT.jar --spring.profiles.active=demo
 ```
 
-Do not use that override for the stage path if you need the JDK 27 hybrid TLS named-group output.
+Changing the Maven compiler release does not add TLS capabilities to the runtime.
+Verify the required named groups with the stage runtime and providers before using
+that override for the demo.
 
 ### If JCE script fails
 

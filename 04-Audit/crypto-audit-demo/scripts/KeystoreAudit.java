@@ -6,7 +6,7 @@
 // quantum-vulnerable key algorithms and signature schemes.
 //
 // Usage:  java scripts/KeystoreAudit.java <keystore-path> [password]
-// Requires: JDK 17+ (JDK 24+ recommended for PQC detection)
+// Requires: JDK 17+; key and certificate support depends on the configured providers
 // ============================================================================
 
 import java.io.FileInputStream;
@@ -137,6 +137,8 @@ public class KeystoreAudit {
         System.out.printf("  %sNote:%s certificate migration and key-establishment migration are different workstreams.%n",
                 BOLD, RESET);
         System.out.printf("  %sTLS 1.3 harvest-now-decrypt-later risk sits first in key establishment, not in the certificate signature alone.%s%n",
+                DIM, RESET);
+        System.out.printf("  %sVerify replacement algorithm, key-format, and certificate support in the target providers and peer systems.%s%n",
                 DIM, RESET);
 
         System.out.println();
@@ -283,16 +285,16 @@ public class KeystoreAudit {
 
     static String suggestPqcReplacement(String algo) {
         if (algo.contains("RSA") && !algo.contains("ECDSA")) {
-            return "ML-DSA for signatures, or ML-KEM for key establishment / wrapping — JDK 24+";
+            return "ML-DSA for signatures, or ML-KEM for key establishment / wrapping";
         }
         if (algo.contains("ECDSA") || algo.contains("ED25519") || algo.contains("ED448")) {
-            return "ML-DSA-44 or ML-DSA-65 for signatures — JDK 24+";
+            return "ML-DSA-44 or ML-DSA-65 for signatures";
         }
         if (algo.contains("ECDH") || algo.contains("DH") || algo.contains("X25519") || algo.contains("X448")) {
-            return "ML-KEM-768 or ML-KEM-1024 for key establishment — JDK 24+";
+            return "ML-KEM-768 or ML-KEM-1024 for key establishment";
         }
         if (algo.contains("DSA")) {
-            return "ML-DSA-44 for signatures — JDK 24+";
+            return "ML-DSA-44 for signatures";
         }
         return "Consult FIPS 203 / 204 / 205 and separate signature vs key-establishment migration";
     }

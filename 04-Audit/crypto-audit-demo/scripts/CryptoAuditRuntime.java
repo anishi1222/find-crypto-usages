@@ -18,7 +18,7 @@
 //   Record from JFR file:
 //     java scripts/CryptoAuditRuntime.java --file <recording.jfr>
 //
-// Requires: JDK 17+ (JDK 24+ for full event coverage)
+// Requires: JDK 17+; available JFR events and fields depend on the runtime build
 // ============================================================================
 
 import com.sun.tools.attach.VirtualMachine;

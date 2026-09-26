@@ -10,7 +10,7 @@
 // providers can do, not what the application actually exercised at runtime.
 //
 // Usage:  java scripts/CryptoAuditJce.java
-// Requires: JDK 17+ (JDK 24+ recommended for PQC algorithm detection)
+// Requires: JDK 17+; PQC availability depends on the configured providers
 // ============================================================================
 
 import java.security.Provider;
@@ -59,7 +59,7 @@ public class CryptoAuditJce {
           + ")"
     );
 
-    // Post-quantum algorithm patterns (JDK 24+ / Bouncy Castle)
+    // Recognized post-quantum algorithm names (provider-dependent)
     static final Pattern PQC_ALGO = Pattern.compile(
             "(?i)(ML-KEM|ML_KEM|MLKEM|ML-DSA|ML_DSA|MLDSA"
           + "|SLH-DSA|SLH_DSA|SLHDSA|HQC|BIKE|CRYSTALS|DILITHIUM|KYBER)"
@@ -161,14 +161,14 @@ public class CryptoAuditJce {
         System.out.printf("  %sOf which, crypto-relevant algorithms:%s %d%n%n",
                 BOLD, RESET, totalAlgos);
 
-        System.out.printf("  %s✅ Post-Quantum algorithms available:    %s%d%s%n",
+        System.out.printf("  %s✅ Recognized Post-Quantum services:     %s%d%s%n",
                 GREEN, WHITE, pqcCount, RESET);
         if (!pqcDetails.isEmpty()) {
             for (String d : pqcDetails) {
                 System.out.printf("     %s+ %s%s%n", GREEN, d, RESET);
             }
         } else {
-            System.out.printf("     %s(none — upgrade to JDK 24+ for ML-KEM/ML-DSA)%s%n", DIM, RESET);
+            System.out.printf("     %s(none recognized in the current provider inventory)%s%n", DIM, RESET);
         }
         System.out.println();
 
@@ -209,17 +209,20 @@ public class CryptoAuditJce {
         System.out.printf("  %sRECOMMENDATIONS:%s%n", BOLD, RESET);
         System.out.printf("    → Treat this output as %scapability inventory%s for the current JDK/providers%n", GREEN, RESET);
         if (pqcCount > 0) {
-            System.out.printf("    %s✅ PQC algorithms detected — your JDK supports post-quantum crypto!%s%n",
+            System.out.printf("    %s✅ Recognized PQC algorithm services registered with the current providers.%s%n",
                     GREEN, RESET);
             System.out.printf("    → Migrate %ssignature%s usage from RSA/ECDSA/DSA to %sML-DSA / SLH-DSA%s%n",
                     GREEN, RESET, GREEN, RESET);
             System.out.printf("    → Migrate %skey-establishment%s usage from ECDH/DH to %sML-KEM%s%n",
                     GREEN, RESET, GREEN, RESET);
         } else {
-            System.out.printf("    %s⚠  No PQC algorithms found. Upgrade to JDK 24+ for ML-KEM/ML-DSA.%s%n",
+            System.out.printf("    %s⚠  No recognized PQC algorithms registered in the current provider inventory.%s%n",
                     YELLOW, RESET);
+            System.out.printf("    → If required, configure a provider supplying ML-KEM/ML-DSA or use a runtime that includes one%n");
         }
-        System.out.printf("    → Upgrade to JDK 27 for native hybrid TLS named-group support (JEP 527)%n");
+        System.out.printf("    → Verify required algorithms with the application's providers and security configuration%n");
+        System.out.printf("    → Verify hybrid TLS named groups in the target JSSE provider and configuration; update the runtime/provider only if needed%n");
+        System.out.printf("    → Algorithm registration does not prove application use or TLS negotiation%n");
         System.out.printf("    → Use java ../ciphercheck-demo/CipherSuiteCheck.java to inspect supported TLS named groups%n");
         System.out.printf("    → Use java scripts/CryptoAuditRuntime.java to compare capability with observed runtime behaviour%n");
         System.out.printf("    → Build crypto-agility layer to ease future algorithm transitions%n");

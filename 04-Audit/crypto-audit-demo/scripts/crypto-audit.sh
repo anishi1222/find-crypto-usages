@@ -4,6 +4,7 @@
 #
 # Scans a Java project to discover all cryptographic usage points
 # and identifies quantum-vulnerable algorithms that need PQC migration.
+# Static findings are not proof of runtime capability or TLS negotiation.
 #
 # Supports: Maven and Gradle projects
 # Frameworks: Spring Boot, Quarkus, Micronaut, Jakarta EE, plain Java
@@ -89,6 +90,12 @@ Options:
   --phase-pause             Wait for Enter between major phases
   --phase-pause-seconds N   Sleep N seconds between major phases
   -h, --help                Show this help
+
+Notes:
+  No JDK release is assumed for the static scan.
+  Build tools and keystore inspection still need a compatible runtime.
+  Verify runtime capabilities separately with the target application's providers
+  and security configuration; a JDK version alone does not establish support.
 EOF
 }
 
@@ -1052,10 +1059,12 @@ echo -e "  ${BOLD}RECOMMENDED ACTIONS:${RESET}"
 echo -e "    1. Migrate ${GREEN}signature workflows${RESET} (JWT, certificates, CMS) from RSA/ECDSA/DSA to ${GREEN}ML-DSA / SLH-DSA${RESET} when ecosystem support is ready"
 echo -e "    2. Migrate ${GREEN}key-establishment workflows${RESET} (ECDH, DH, TLS named groups, RSA wrapping) to ${GREEN}ML-KEM / hybrid TLS${RESET}"
 echo -e "    3. Keep ${GREEN}bulk symmetric crypto${RESET} (AES, ChaCha, HMAC) but review key sizes and crypto-agility boundaries"
-echo -e "    4. Upgrade to ${GREEN}JDK 27${RESET} for native hybrid TLS named groups (JEP 527)"
+echo -e "    4. Verify ${GREEN}PQC algorithms and hybrid TLS named groups${RESET} in the target runtime/providers; update them only if required capabilities are missing"
 echo -e "    5. Add a ${GREEN}crypto-agility abstraction layer${RESET} so signatures, KEM, and TLS settings can evolve independently"
 echo -e "  ${CYAN}────────────────────────────────────────────────${RESET}"
 echo ""
+echo -e "  ${DIM}Static findings do not prove runtime capability or negotiated TLS groups.${RESET}"
+echo -e "  ${DIM}Run the checks below with the target application's JDK and equivalent provider/security settings.${RESET}"
 echo -e "  ${DIM}Run 'java scripts/CryptoAuditJce.java' for JCE provider enumeration${RESET}"
 echo -e "  ${DIM}Run 'java ../ciphercheck-demo/CipherSuiteCheck.java' for TLS named-group capability audit${RESET}"
 echo -e "  ${DIM}Run 'java scripts/KeystoreAudit.java <path> <password>' for keystore audit${RESET}"
